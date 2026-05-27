@@ -1047,6 +1047,8 @@
       return{date,templateId:tpl.id,sections:tpl.sections.map(s=>({sectionId:s.id,rows:deepClone(s.rows)}))};
     }
 
+    const BACKEND_URL = 'https://daily-tracker-0bjh.onrender.com';
+
     function saveToLS(){
       localStorage.setItem('planner_theme',state.theme);
       localStorage.setItem('planner_plans',JSON.stringify(state.plans));
@@ -1075,7 +1077,7 @@
         }, 3000);
       } else if (status === 'error') {
         icon.className = 'ti ti-cloud-exclamation';
-        syncStatusEl.style.color = 'var(--danger)';
+        syncStatusEl.style.color = '#ef4444'; // danger red
       }
     }
 
@@ -1095,7 +1097,7 @@
         const plans = state.plans;
         
         for (const tpl of templates) {
-          await fetch('http://localhost:3000/api/templates', {
+          await fetch(`${BACKEND_URL}/api/templates`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(tpl)
@@ -1103,7 +1105,7 @@
         }
         
         for (const dateKey of Object.keys(plans)) {
-          await fetch('http://localhost:3000/api/plans', {
+          await fetch(`${BACKEND_URL}/api/plans`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ date_key: dateKey, planData: plans[dateKey] })
@@ -1121,7 +1123,7 @@
 
     async function fetchFromCloud() {
       try {
-        const res = await fetch('http://localhost:3000/api/sync');
+        const res = await fetch(`${BACKEND_URL}/api/sync`);
         if (!res.ok) throw new Error('Network response was not ok');
         const data = await res.json();
         
@@ -1130,11 +1132,17 @@
           state.templates = data.templates;
           localStorage.setItem('planner_templates',JSON.stringify(state.templates));
           hasChanges = true;
+        } else if (state.templates && state.templates.length > 0) {
+          // Cloud is empty but local has data, seed the cloud
+          syncWithCloud(true);
         }
-        if (data.plans) {
+
+        if (data.plans && Object.keys(data.plans).length > 0) {
           state.plans = { ...state.plans, ...data.plans };
           localStorage.setItem('planner_plans',JSON.stringify(state.plans));
           hasChanges = true;
+        } else if (state.plans && Object.keys(state.plans).length > 0) {
+          syncWithCloud(true);
         }
         
         if (hasChanges) {
