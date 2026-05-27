@@ -1,6 +1,6 @@
-const CACHE_NAME = 'daily-planner-cache-v5';
+const CACHE_NAME = 'daily-planner-cache-v6';
 const ASSETS_TO_CACHE = [
-  'daily_planner_app.html',
+  'index.html',
   'manifest.json',
   'icon.svg',
   'https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Outfit:wght@300..600&display=swap',
