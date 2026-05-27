@@ -1,0 +1,2272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="An elegant, client-side daily planner and productivity journal. Customize templates, track daily habits, record moods and energy, generate reflection prompts, and work completely offline.">
+  <title>Daily Planner — Organize Your Day</title>
+
+  <!-- PWA Manifest & Icons -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <meta name="theme-color" content="#2563eb">
+
+  <!-- Google Fonts: Outfit (UI elements) and Lora (journal logs and text entry) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Outfit:wght@300..600&display=swap" rel="stylesheet">
+  
+  <!-- Tabler Icons CSS for clean vector interface icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --p-bg: #f8fafc;
+      --p-surface: #ffffff;
+      --p-border: #e2e8f0;
+      --p-text: #0f172a;
+      --p-muted: #64748b;
+      --p-accent: #2563eb;
+      --p-accent-light: #eff6ff;
+      --p-tag-bg: #f1f5f9;
+      --p-drag: #dbeafe;
+      --p-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+      --p-radius-sm: 8px;
+      --p-radius-md: 12px;
+    }
+
+    [data-theme="dark"] {
+      --p-bg: #0f172a;
+      --p-surface: #1e293b;
+      --p-border: #334155;
+      --p-text: #f8fafc;
+      --p-muted: #94a3b8;
+      --p-accent: #3b82f6;
+      --p-accent-light: #1e3a8a;
+      --p-tag-bg: #334155;
+      --p-drag: #1e3a8a;
+      --p-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    [data-theme="pastel"] {
+      --p-bg: #fefaf6;
+      --p-surface: #ffffff;
+      --p-border: #f5e3d7;
+      --p-text: #433422;
+      --p-muted: #8c7355;
+      --p-accent: #dd6b55;
+      --p-accent-light: #fff5f2;
+      --p-tag-bg: #f7ede2;
+      --p-drag: #fad8cc;
+      --p-shadow: 0 4px 6px -1px rgba(221, 107, 85, 0.05);
+    }
+
+    [data-theme="minimal"] {
+      --p-bg: #ffffff;
+      --p-surface: #ffffff;
+      --p-border: #e2e2e2;
+      --p-text: #171717;
+      --p-muted: #737373;
+      --p-accent: #171717;
+      --p-accent-light: #f5f5f5;
+      --p-tag-bg: #f5f5f5;
+      --p-drag: #e5e5e5;
+      --p-shadow: none;
+    }
+
+    body {
+      background: var(--p-bg);
+      color: var(--p-text);
+      font-family: 'Lora', Georgia, serif;
+      font-size: 15px;
+      line-height: 1.6;
+      transition: background 0.3s ease, color 0.3s ease;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Scrollbar Styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--p-border);
+      border-radius: 99px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--p-muted);
+    }
+
+    /* Layout */
+    #app {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 5rem;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      border-bottom: 1px solid var(--p-border);
+      padding-bottom: 1.5rem;
+    }
+
+    .top-bar h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      color: var(--p-text);
+      text-transform: lowercase;
+    }
+
+    .top-bar h1 span {
+      color: var(--p-accent);
+      font-weight: 300;
+    }
+
+    .controls {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    /* Save Indicator */
+    .save-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 12px;
+      color: var(--p-muted);
+      background: var(--p-tag-bg);
+      padding: 6px 12px;
+      border-radius: 20px;
+      transition: all 0.25s ease;
+      opacity: 0.8;
+      border: 1px solid var(--p-border);
+    }
+    .save-indicator.saving {
+      color: var(--p-accent);
+      border-color: var(--p-accent);
+      opacity: 1;
+    }
+    .save-indicator.saving i {
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* Buttons & Form Controls */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border: 1px solid var(--p-border);
+      background: var(--p-surface);
+      color: var(--p-text);
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: var(--p-radius-sm);
+      cursor: pointer;
+      font-family: 'Outfit', sans-serif;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    }
+
+    .btn:hover {
+      border-color: var(--p-muted);
+      background: var(--p-tag-bg);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn.primary {
+      background: var(--p-accent);
+      color: #ffffff;
+      border-color: var(--p-accent);
+    }
+
+    .btn.primary:hover {
+      opacity: 0.95;
+      box-shadow: 0 4px 12px var(--p-accent-light);
+    }
+
+    .btn.sm {
+      padding: 6px 12px;
+      font-size: 12px;
+      border-radius: 6px;
+    }
+
+    .btn.danger {
+      color: #ef4444;
+    }
+
+    .btn.danger:hover {
+      background: #fef2f2;
+      border-color: #fca5a5;
+    }
+    [data-theme="dark"] .btn.danger:hover {
+      background: #450a0a;
+      border-color: #991b1b;
+    }
+
+    select, input[type="date"] {
+      padding: 8px 12px;
+      border: 1px solid var(--p-border);
+      background: var(--p-surface);
+      color: var(--p-text);
+      font-size: 13px;
+      border-radius: var(--p-radius-sm);
+      cursor: pointer;
+      font-family: 'Outfit', sans-serif;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    select:hover, input[type="date"]:hover {
+      border-color: var(--p-muted);
+    }
+
+    select:focus, input[type="date"]:focus {
+      border-color: var(--p-accent);
+    }
+
+    .theme-dots {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-right: 0.5rem;
+    }
+
+    .theme-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s ease;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1), 0 1px 1px rgba(0, 0, 0, 0.05);
+    }
+
+    .theme-dot:hover {
+      transform: scale(1.15);
+    }
+
+    .theme-dot.active {
+      transform: scale(1.1);
+      border-color: var(--p-accent) !important;
+      box-shadow: 0 0 0 2px var(--p-accent-light);
+    }
+
+    /* Cards Layout Grid System */
+    #view-plan, #section-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+      align-items: flex-start;
+    }
+    
+    @media (max-width: 768px) {
+      #view-plan, #section-list {
+        display: flex;
+      }
+      .section-card {
+        width: 100% !important;
+      }
+    }
+    
+    .section-card.width-full {
+      width: 100%;
+    }
+    
+    .section-card.width-half {
+      width: calc(50% - 0.625rem);
+    }
+
+    .section-card {
+      background: var(--p-surface);
+      border: 1px solid var(--p-border);
+      border-radius: var(--p-radius-md);
+      overflow: hidden;
+      box-shadow: var(--p-shadow);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+
+    .section-card.dragging {
+      border-color: var(--p-accent) !important;
+      background: var(--p-drag) !important;
+      transform: scale(1.01);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+      opacity: 0.6;
+    }
+
+    .section-card.dragover {
+      border-top: 4px solid var(--p-accent) !important;
+      background: var(--p-accent-light) !important;
+    }
+    
+    /* Resize Handles */
+    .resize-handle {
+      position: absolute;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 10;
+    }
+    .section-card:hover .resize-handle {
+      opacity: 1;
+    }
+    .resize-right {
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 8px;
+      cursor: ew-resize;
+      background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.1));
+    }
+    .resize-bottom {
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 8px;
+      cursor: ns-resize;
+      background: linear-gradient(0deg, transparent, rgba(37, 99, 235, 0.1));
+    }
+    .resize-corner {
+      bottom: 0;
+      right: 0;
+      width: 12px;
+      height: 12px;
+      cursor: nwse-resize;
+      background: rgba(37, 99, 235, 0.3);
+      border-top-left-radius: 4px;
+    }
+    .resize-handle:hover, .resize-handle.active {
+      background: rgba(37, 99, 235, 0.5);
+    }
+    body.is-resizing * {
+      user-select: none !important;
+      pointer-events: none !important;
+    }
+
+    .section-card.dragover {
+      border-top: 4px solid var(--p-accent) !important;
+      background: var(--p-accent-light) !important;
+    }
+
+    /* Custom heights cascading styles */
+    .section-card.height-small .notes-area {
+      min-height: 80px;
+    }
+    .section-card.height-medium .notes-area {
+      min-height: 160px;
+    }
+    .section-card.height-large .notes-area {
+      min-height: 320px;
+    }
+    
+    .section-card.height-small .section-body {
+      min-height: 100px;
+    }
+    .section-card.height-medium .section-body {
+      min-height: 200px;
+    }
+    .section-card.height-large .section-body {
+      min-height: 380px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0.9rem 1.25rem;
+      border-bottom: 1px solid var(--p-border);
+      background: var(--p-bg);
+    }
+
+    .drag-handle {
+      cursor: grab;
+      color: var(--p-muted);
+      font-size: 14px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      transition: background 0.15s;
+    }
+    .drag-handle:hover {
+      background: var(--p-border);
+    }
+
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .section-title-input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--p-text);
+      font-size: 14px;
+      font-weight: 500;
+      font-family: 'Outfit', sans-serif;
+      outline: none;
+      border-bottom: 1px solid transparent;
+      padding-bottom: 2px;
+      transition: border-color 0.2s;
+    }
+
+    .section-title-input:focus {
+      border-bottom-color: var(--p-accent);
+    }
+
+    .section-body {
+      padding: 1.25rem;
+    }
+
+    /* Inline Settings Panel */
+    .card-settings-panel {
+      border-bottom: 1px solid var(--p-border);
+      background: var(--p-bg);
+      padding: 10px 15px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 12px;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+      transition: all 0.2s ease;
+    }
+
+    /* Daily Log Entry Inputs */
+    .time-row {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 12px;
+      margin-bottom: 8px;
+      align-items: start;
+    }
+
+    .time-label {
+      font-family: 'Outfit', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--p-muted);
+      padding-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .line-input {
+      width: 100%;
+      border: none;
+      border-bottom: 1px solid var(--p-border);
+      background: transparent;
+      color: var(--p-text);
+      font-size: 14px;
+      font-family: 'Lora', Georgia, serif;
+      padding: 4px 2px;
+      outline: none;
+      resize: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .line-input:focus {
+      border-bottom-color: var(--p-accent);
+    }
+
+    .priority-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .priority-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--p-accent);
+      color: #ffffff;
+      font-family: 'Outfit', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 3px;
+    }
+
+    .bullet-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .bullet-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--p-muted);
+      flex-shrink: 0;
+      margin-top: 10px;
+    }
+
+    /* Habits Tracker Modern Polish */
+    .habit-grid {
+      display: grid;
+      grid-template-columns: 1fr repeat(7, 34px);
+      gap: 8px;
+      align-items: center;
+    }
+
+    .habit-name {
+      font-family: 'Outfit', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--p-text);
+    }
+
+    .habit-cb {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border: 1.5px solid var(--p-border);
+      border-radius: 50%;
+      outline: none;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      background: var(--p-surface);
+      justify-self: center;
+    }
+
+    .habit-cb:checked {
+      background: var(--p-accent);
+      border-color: var(--p-accent);
+    }
+
+    .habit-cb:checked::after {
+      content: '';
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      width: 7px;
+      height: 7px;
+      background: #ffffff;
+      border-radius: 50%;
+    }
+
+    .habit-cb:hover {
+      transform: scale(1.15);
+      border-color: var(--p-accent);
+    }
+
+    .day-label {
+      font-family: 'Outfit', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--p-muted);
+      text-align: center;
+      justify-self: center;
+      margin-bottom: 4px;
+    }
+
+    /* Mood Selector Styles */
+    .mood-selectors {
+      display: flex;
+      gap: 10px;
+    }
+    .mood-btn {
+      font-size: 26px !important;
+      background: none !important;
+      border: 2px solid transparent !important;
+      border-radius: 50% !important;
+      cursor: pointer !important;
+      padding: 6px !important;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+      outline: none !important;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .mood-btn:hover {
+      transform: scale(1.2) translateY(-2px);
+    }
+    .mood-btn.active {
+      border-color: var(--p-accent) !important;
+      background: var(--p-accent-light) !important;
+      transform: scale(1.15);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    .add-row-btn {
+      font-family: 'Outfit', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--p-accent);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: color 0.15s;
+    }
+
+    .add-row-btn:hover {
+      text-decoration: underline;
+      opacity: 0.8;
+    }
+
+    /* Tab Controls */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 1.5rem;
+      background: var(--p-tag-bg);
+      border-radius: 10px;
+      padding: 4px;
+      border: 1px solid var(--p-border);
+    }
+
+    .tab {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--p-muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: 'Outfit', sans-serif;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .tab:hover {
+      color: var(--p-text);
+    }
+
+    .tab.active {
+      background: var(--p-surface);
+      color: var(--p-text);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      border: 1px solid var(--p-border);
+    }
+
+    .date-nav {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .date-nav h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 500;
+      color: var(--p-text);
+      margin-left: auto;
+    }
+
+    /* Notes Area */
+    .notes-area {
+      width: 100%;
+      min-height: 160px;
+      border: 1px solid var(--p-border);
+      border-radius: var(--p-radius-sm);
+      background: var(--p-surface);
+      color: var(--p-text);
+      font-family: 'Lora', Georgia, serif;
+      font-size: 14px;
+      padding: 12px;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .notes-area:focus {
+      border-color: var(--p-accent);
+      box-shadow: 0 0 0 3px var(--p-accent-light);
+    }
+
+    /* Screen Reader Only Utility */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border-width: 0;
+    }
+
+    /* Toast System */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--p-text);
+      color: var(--p-surface);
+      padding: 12px 20px;
+      border-radius: var(--p-radius-sm);
+      font-family: 'Outfit', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+      z-index: 999;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Custom Canvas Builder Layout */
+    .builder-layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 1.5rem;
+      align-items: start;
+      margin-top: 1rem;
+      width: 100%;
+    }
+    
+    @media (max-width: 768px) {
+      .builder-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .toolbox-container {
+      background: var(--p-surface);
+      border: 1px solid var(--p-border);
+      border-radius: var(--p-radius-md);
+      padding: 1.25rem;
+      box-shadow: var(--p-shadow);
+      position: sticky;
+      top: 1.5rem;
+    }
+    
+    .toolbox-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--p-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.75rem;
+    }
+    
+    .toolbox-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .toolbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border: 1px dashed var(--p-border);
+      border-radius: var(--p-radius-sm);
+      background: var(--p-bg);
+      cursor: grab;
+      font-family: 'Outfit', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--p-text);
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+    
+    .toolbox-item:hover {
+      border-color: var(--p-accent);
+      background: var(--p-accent-light);
+      color: var(--p-accent);
+      transform: translateY(-1px);
+    }
+    
+    .toolbox-item:active {
+      cursor: grabbing;
+    }
+    
+    .toolbox-item i {
+      font-size: 14px;
+      color: var(--p-muted);
+    }
+    .toolbox-item:hover i {
+      color: var(--p-accent);
+    }
+    
+    .canvas-container {
+      flex: 1;
+      min-height: 400px;
+    }
+    
+    .canvas-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 4rem 2rem;
+      border: 2px dashed var(--p-border);
+      border-radius: var(--p-radius-md);
+      background: var(--p-surface);
+      color: var(--p-muted);
+      font-family: 'Outfit', sans-serif;
+      gap: 10px;
+      transition: all 0.2s ease;
+      grid-column: span 2;
+    }
+    
+    .canvas-empty.dragover {
+      border-color: var(--p-accent);
+      background: var(--p-accent-light);
+      color: var(--p-accent);
+    }
+    
+    .canvas-empty i {
+      font-size: 36px;
+      color: var(--p-accent);
+      margin-bottom: 4px;
+    }
+    
+    .canvas-empty p {
+      font-weight: 600;
+      font-size: 15px;
+      color: var(--p-text);
+    }
+    
+    .canvas-empty span {
+      font-size: 12px;
+      max-width: 280px;
+      line-height: 1.4;
+    }
+
+    /* Tab Animations */
+    #view-plan, #view-customize, #view-export {
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <h2 class="sr-only">Daily planner — select a date, choose or customize a template, and log your day.</h2>
+
+  <div id="app">
+    <div class="top-bar">
+      <h1>daily<span>planner</span></h1>
+      <div class="controls">
+        <div class="save-indicator" id="saveIndicator">
+          <span id="sync-status"><i class="ti ti-cloud-check"></i></span> <span>All changes saved</span>
+        </div>
+        <div class="theme-dots" id="themeDots"></div>
+        <select id="templateSelect" aria-label="Select Template"></select>
+        <button class="btn" onclick="createNewTemplate()"><i class="ti ti-plus" aria-hidden="true"></i> new template</button>
+        <button class="btn" onclick="showTab('customize')"><i class="ti ti-layout-dashboard" aria-hidden="true"></i> customize</button>
+        <button class="btn primary" onclick="savePlan()"><i class="ti ti-device-floppy" aria-hidden="true"></i> save</button>
+      </div>
+    </div>
+
+    <div class="date-nav">
+      <button class="btn sm" onclick="shiftDay(-1)" aria-label="Previous Day"><i class="ti ti-chevron-left" aria-hidden="true"></i></button>
+      <input type="date" id="dateInput" onchange="loadDay()" aria-label="Select Date">
+      <button class="btn sm" onclick="shiftDay(1)" aria-label="Next Day"><i class="ti ti-chevron-right" aria-hidden="true"></i></button>
+      <button class="btn sm" onclick="goToday()">today</button>
+      <h2 id="dayLabel"></h2>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('plan')" id="tab-plan">plan</button>
+      <button class="tab" onclick="showTab('customize')" id="tab-customize">customize template</button>
+      <button class="tab" onclick="showTab('export')" id="tab-export">export / import</button>
+    </div>
+
+    <div id="view-plan"></div>
+    <div id="view-customize" style="display:none"></div>
+    <div id="view-export" style="display:none"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // Force unregister older service worker cache to pull fresh changes
+    if ('serviceWorker' in navigator && !sessionStorage.getItem('sw_cleared_v4')) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        if (registrations.length > 0) {
+          sessionStorage.setItem('sw_cleared_v4', 'true');
+          Promise.all(registrations.map(r => r.unregister())).then(() => {
+            window.location.reload();
+          });
+        }
+      });
+    }
+
+    const THEMES=[
+      {id:'light',label:'Light',dot:'#ffffff',border:'#e2e8f0'},
+      {id:'dark',label:'Dark',dot:'#1e293b',border:'#334155'},
+      {id:'pastel',label:'Pastel',dot:'#dd6b55',border:'#f5e3d7'},
+      {id:'minimal',label:'Minimal',dot:'#737373',border:'#e2e2e2'}
+    ];
+
+    const SECTION_TYPES=[
+      {type:'priorities',label:'Top 3 Priorities',icon:'ti-list-check'},
+      {type:'hourly',label:'Hourly Schedule',icon:'ti-clock'},
+      {type:'tasks',label:'Task List',icon:'ti-checkbox'},
+      {type:'notes',label:'Notes / Thoughts',icon:'ti-notes'},
+      {type:'reflection',label:'Daily Reflection',icon:'ti-sparkles'},
+      {type:'habits',label:'Habit Tracker',icon:'ti-flame'},
+      {type:'timeblock',label:'Time Block',icon:'ti-layout-rows'},
+      {type:'gratitude',label:'Gratitude',icon:'ti-heart'},
+      {type:'appointments',label:'Appointments',icon:'ti-calendar'},
+      {type:'mood',label:'Mood & Energy',icon:'ti-mood-smile'},
+    ];
+
+    const DEFAULT_TEMPLATES=[
+      {id:'hourly',name:'Hourly Schedule',sections:[
+        {id:'s1',type:'hourly',label:'Hourly Schedule',rows:['6 AM','7 AM','8 AM','9 AM','10 AM','11 AM','12 PM','1 PM','2 PM','3 PM','4 PM','5 PM','6 PM','7 PM','8 PM','9 PM'],width:'full'},
+        {id:'s2',type:'priorities',label:'Top 3 Priorities',rows:['','',''],width:'full'},
+        {id:'s3',type:'notes',label:'Notes',rows:[''],width:'full'}
+      ]},
+      {id:'taskfocus',name:'Task Focused',sections:[
+        {id:'s1',type:'priorities',label:'Top 3 Priorities',rows:['','',''],width:'full'},
+        {id:'s2',type:'tasks',label:'Task List',rows:['','','','',''],width:'half'},
+        {id:'s5',type:'mood',label:'Mood & Energy',rows:['','3'],width:'half'},
+        {id:'s3',type:'notes',label:'Notes',rows:[''],width:'full'},
+        {id:'s4',type:'habits',label:'Habits',rows:['Exercise','Read','Water','Meditate'],width:'full'}
+      ]},
+      {id:'bullet',name:'Bullet Journal',sections:[
+        {id:'s1',type:'priorities',label:'Focus of the Day',rows:['',''],width:'half'},
+        {id:'s5',type:'mood',label:'Daily Vibe',rows:['','3'],width:'half'},
+        {id:'s2',type:'tasks',label:'Tasks · Bullets',rows:['','','','','',''],width:'half'},
+        {id:'s3',type:'gratitude',label:'Gratitude',rows:['','',''],width:'half'},
+        {id:'s4',type:'notes',label:'Log / Free Space',rows:[''],width:'full'}
+      ]}
+    ];
+
+    const REFLECTION_PROMPTS = [
+      "What was the best part of your day today?",
+      "What is one thing you learned or realized today?",
+      "Describe a challenge you faced today and how you handled it.",
+      "What are three things you are grateful for today?",
+      "Who made a positive impact on your day today?",
+      "If you could change one thing about today, what would it be?",
+      "What made you smile or laugh today?",
+      "How did you take care of your physical or mental health today?",
+      "What is a goal you made progress on today, however small?",
+      "What is a self-care activity you enjoyed or need tomorrow?",
+      "How did you show kindness to yourself or someone else today?",
+      "What was the most peaceful or quiet moment of your day?",
+      "What are you looking forward to tomorrow?",
+      "How did you handle any stress or anxiety today?",
+      "What is something you want to let go of before you sleep?",
+      "What was a conversation that stood out to you today?",
+      "Did you step out of your comfort zone today? If so, how?",
+      "What was the main mood or theme of your day?",
+      "How did you practice mindfulness or presence today?",
+      "What is a word or phrase that summarizes today?",
+      "What is something you did today that you are proud of?",
+      "What is a habit you successfully completed today, and how did it make you feel?",
+      "How can you make tomorrow a little bit better than today?",
+      "What is a quote, thought, or realization that inspired you today?",
+      "What did your body need today, and did you give it what it needed?"
+    ];
+
+    let state={
+      theme:'light',
+      currentDate:todayStr(),
+      templates:JSON.parse(localStorage.getItem('planner_templates')||'null')||deepClone(DEFAULT_TEMPLATES),
+      currentTemplateId:'hourly',
+      plans:JSON.parse(localStorage.getItem('planner_plans')||'{}'),
+      activeTab:'plan'
+    };
+
+    let saveTimeout = null;
+
+    function todayStr(){const d=new Date();return d.toISOString().split('T')[0]}
+    function deepClone(x){return JSON.parse(JSON.stringify(x))}
+    function uid(){return Math.random().toString(36).slice(2,9)}
+    
+    function toast(msg){
+      const t=document.getElementById('toast');
+      t.textContent=msg;
+      t.classList.add('show');
+      setTimeout(()=>t.classList.remove('show'),2200);
+    }
+
+    function getTemplate(id){return state.templates.find(t=>t.id===id)||state.templates[0]}
+    function getPlan(date){return state.plans[date]}
+    function getPlanOrDefault(date){
+      const p=state.plans[date];
+      if(p)return deepClone(p);
+      const tpl=getTemplate(state.currentTemplateId);
+      return{date,templateId:tpl.id,sections:tpl.sections.map(s=>({sectionId:s.id,rows:deepClone(s.rows)}))};
+    }
+
+    function saveToLS(){
+      localStorage.setItem('planner_theme',state.theme);
+      localStorage.setItem('planner_plans',JSON.stringify(state.plans));
+      localStorage.setItem('planner_templates',JSON.stringify(state.templates));
+      syncWithCloud();
+    }
+
+    let syncTimeout = null;
+    let isSyncing = false;
+
+    function setSyncStatus(status) {
+      const syncStatusEl = document.getElementById('sync-status');
+      if (!syncStatusEl) return;
+      const icon = syncStatusEl.querySelector('i');
+      if (!icon) return;
+      
+      if (status === 'syncing') {
+        icon.className = 'ti ti-cloud-upload';
+        syncStatusEl.style.color = 'var(--p-accent)';
+        syncStatusEl.style.opacity = '1';
+      } else if (status === 'synced') {
+        icon.className = 'ti ti-cloud-check';
+        syncStatusEl.style.color = '#10B981'; // green
+        setTimeout(() => {
+          syncStatusEl.style.color = 'var(--p-muted)';
+        }, 3000);
+      } else if (status === 'error') {
+        icon.className = 'ti ti-cloud-exclamation';
+        syncStatusEl.style.color = 'var(--danger)';
+      }
+    }
+
+    async function syncWithCloud(force = false) {
+      if (!force) {
+        clearTimeout(syncTimeout);
+        syncTimeout = setTimeout(() => syncWithCloud(true), 1500);
+        return;
+      }
+      
+      if (isSyncing) return;
+      isSyncing = true;
+      setSyncStatus('syncing');
+      
+      try {
+        const templates = state.templates;
+        const plans = state.plans;
+        
+        for (const tpl of templates) {
+          await fetch('http://localhost:3000/api/templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(tpl)
+          });
+        }
+        
+        for (const dateKey of Object.keys(plans)) {
+          await fetch('http://localhost:3000/api/plans', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date_key: dateKey, planData: plans[dateKey] })
+          });
+        }
+        
+        setSyncStatus('synced');
+      } catch (err) {
+        console.error("Cloud sync failed:", err);
+        setSyncStatus('error');
+      } finally {
+        isSyncing = false;
+      }
+    }
+
+    async function fetchFromCloud() {
+      try {
+        const res = await fetch('http://localhost:3000/api/sync');
+        if (!res.ok) throw new Error('Network response was not ok');
+        const data = await res.json();
+        
+        let hasChanges = false;
+        if (data.templates && data.templates.length > 0) {
+          state.templates = data.templates;
+          localStorage.setItem('planner_templates',JSON.stringify(state.templates));
+          hasChanges = true;
+        }
+        if (data.plans) {
+          state.plans = { ...state.plans, ...data.plans };
+          localStorage.setItem('planner_plans',JSON.stringify(state.plans));
+          hasChanges = true;
+        }
+        
+        if (hasChanges) {
+          initTemplateSelect();
+          renderPlan();
+          if(state.activeTab === 'customize') renderCustomize();
+        }
+        setSyncStatus('synced');
+      } catch(err) {
+        console.error("Failed to load from cloud. Using local storage only.", err);
+        setSyncStatus('error');
+      }
+    }
+
+    function initThemes(){
+      const dot=document.getElementById('themeDots');
+      dot.innerHTML=THEMES.map(t=>`<div class="theme-dot${state.theme===t.id?' active':''}" style="background:${t.dot};border-color:${t.border}" onclick="setTheme('${t.id}')" title="${t.label}"></div>`).join('');
+    }
+
+    function setTheme(id){
+      state.theme=id;
+      document.documentElement.setAttribute('data-theme',id);
+      document.querySelectorAll('.theme-dot').forEach((d,i)=>{d.classList.toggle('active',THEMES[i].id===id)});
+    }
+
+    function initTemplateSelect(){
+      const sel=document.getElementById('templateSelect');
+      sel.innerHTML=state.templates.map(t=>`<option value="${t.id}"${t.id===state.currentTemplateId?' selected':''}>${t.name}</option>`).join('');
+      sel.onchange=()=>{
+        flushAutoSave();
+        state.currentTemplateId=sel.value;
+        renderPlan();
+      };
+    }
+
+    // PWA & template customizers
+    function createNewTemplate() {
+      const name = prompt('Template Name:', 'My Custom Page');
+      if (name && name.trim()) {
+        const newTpl = {
+          id: uid(),
+          name: name.trim(),
+          sections: []
+        };
+        state.templates.push(newTpl);
+        state.currentTemplateId = newTpl.id;
+        saveToLS();
+        initTemplateSelect();
+        showTab('customize');
+        toast('New empty template created');
+      }
+    }
+
+    function deleteTpl(id) {
+      if (state.templates.length <= 1) {
+        toast('Cannot delete the last remaining template');
+        return;
+      }
+      if (confirm('Are you sure you want to delete this template and all its configurations?')) {
+        flushAutoSave();
+        state.templates = state.templates.filter(t => t.id !== id);
+        state.currentTemplateId = state.templates[0].id;
+        saveToLS();
+        initTemplateSelect();
+        renderPlan();
+        renderCustomize();
+        toast('Template deleted');
+      }
+    }
+
+    function initDateInput(){
+      const d=document.getElementById('dateInput');
+      d.value=state.currentDate;
+      updateDayLabel();
+    }
+
+    function updateDayLabel(){
+      const parts=state.currentDate.split('-');
+      const d=new Date(+parts[0],+parts[1]-1,+parts[2]);
+      const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      document.getElementById('dayLabel').textContent=`${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+    }
+
+    function shiftDay(n){
+      flushAutoSave();
+      const parts=state.currentDate.split('-');
+      const d=new Date(+parts[0],+parts[1]-1,+parts[2]);
+      d.setDate(d.getDate()+n);
+      state.currentDate=d.toISOString().split('T')[0];
+      document.getElementById('dateInput').value=state.currentDate;
+      updateDayLabel();
+      renderPlan();
+    }
+
+    function goToday(){
+      flushAutoSave();
+      state.currentDate=todayStr();
+      document.getElementById('dateInput').value=state.currentDate;
+      updateDayLabel();
+      renderPlan();
+    }
+
+    function loadDay(){
+      flushAutoSave();
+      state.currentDate=document.getElementById('dateInput').value;
+      updateDayLabel();
+      renderPlan();
+    }
+
+    function collectCurrentPlanData(){
+      const tpl=getTemplate(state.currentTemplateId);
+      const planView = document.getElementById('view-plan');
+      const sections=tpl.sections.map(sec=>{
+        const rows=[];
+        const inputs=planView ? planView.querySelectorAll(`[data-sec="${sec.id}"]`) : [];
+        inputs.forEach(inp=>rows.push(inp.type==='checkbox'?inp.checked:(inp.value||'')));
+        return{sectionId:sec.id,rows};
+      });
+      return{date:state.currentDate,templateId:state.currentTemplateId,sections};
+    }
+
+    // Manual and automatic save implementation
+    function savePlan(silent = false){
+      const plan=collectCurrentPlanData();
+      state.plans[state.currentDate]=plan;
+      saveToLS();
+      if(!silent) {
+        toast('saved ✓');
+      }
+      setSaveStatus('saved');
+    }
+
+    // Debounce save mechanics
+    function triggerAutoSave() {
+      setSaveStatus('saving');
+      if (saveTimeout) clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(() => {
+        savePlan(true);
+      }, 1000);
+    }
+
+    function flushAutoSave() {
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+        saveTimeout = null;
+        savePlan(true);
+      }
+    }
+
+    function setSaveStatus(status) {
+      const ind = document.getElementById('saveIndicator');
+      if (!ind) return;
+      const label = ind.querySelector('span');
+      const icon = ind.querySelector('i');
+      if (status === 'saving') {
+        ind.classList.add('saving');
+        label.textContent = 'Saving...';
+        icon.className = 'ti ti-loader-2';
+      } else if (status === 'saved') {
+        ind.classList.remove('saving');
+        label.textContent = 'All changes saved';
+        icon.className = 'ti ti-cloud-check';
+      } else if (status === 'modified') {
+        ind.classList.remove('saving');
+        label.textContent = 'Unsaved changes';
+        icon.className = 'ti ti-cloud-upload';
+      }
+    }
+
+    // Setup event delegation for auto saving modifications
+    function initAutoSaveListener() {
+      const viewPlan = document.getElementById('view-plan');
+      const handleInput = (e) => {
+        if (e.target.matches('[data-sec]')) {
+          setSaveStatus('modified');
+          triggerAutoSave();
+        }
+      };
+      viewPlan.addEventListener('input', handleInput);
+      viewPlan.addEventListener('change', handleInput);
+    }
+
+    // Helper functions for mood selector
+    function selectMood(secId, val) {
+      const hiddenInput = document.getElementById(`mood-val-${secId}`);
+      if (!hiddenInput) return;
+      hiddenInput.value = val;
+      
+      const container = hiddenInput.parentElement;
+      container.querySelectorAll('.mood-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.trim() === val);
+      });
+      
+      setSaveStatus('modified');
+      triggerAutoSave();
+    }
+     
+    function updateEnergyLabel(secId, val) {
+      const label = document.getElementById(`energy-label-${secId}`);
+      if (label) label.textContent = `${val}/5`;
+      
+      setSaveStatus('modified');
+      triggerAutoSave();
+    }
+
+    // Helper function for generating reflections
+    function generateReflectionPrompt(secId) {
+      const textarea = document.getElementById(`notes-${secId}`);
+      if (!textarea) return;
+      const randIdx = Math.floor(Math.random() * REFLECTION_PROMPTS.length);
+      const prompt = REFLECTION_PROMPTS[randIdx];
+      const prefix = textarea.value.trim() ? '\n\n' : '';
+      textarea.value = textarea.value + prefix + `> Prompt: ${prompt}\n\n`;
+      textarea.focus();
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+      
+      setSaveStatus('modified');
+      triggerAutoSave();
+    }
+
+    // Card Settings Controllers
+    function toggleCardSettings(secId, isPreview, event) {
+      if (event) event.stopPropagation();
+      const panelId = isPreview ? `csettings-${secId}` : `settings-${secId}`;
+      const panel = document.getElementById(panelId);
+      if (!panel) return;
+      const isHidden = panel.style.display === 'none';
+      panel.style.display = isHidden ? 'flex' : 'none';
+    }
+
+    function updateCardWidth(secId, width) {
+      flushAutoSave();
+      const tpl = getTemplate(state.currentTemplateId);
+      const sec = tpl.sections.find(s => s.id === secId);
+      if (sec) {
+        sec.width = width;
+        saveToLS();
+        
+        const planCard = document.getElementById(`sec-${secId}`);
+        if (planCard) {
+          planCard.className = `section-card width-${width} height-${sec.height || 'medium'}`;
+        }
+        const custCard = document.getElementById(`csec-${secId}`);
+        if (custCard) {
+          custCard.className = `section-card width-${width} height-${sec.height || 'medium'}`;
+        }
+      }
+    }
+
+    function updateCardHeight(secId, height) {
+      flushAutoSave();
+      const tpl = getTemplate(state.currentTemplateId);
+      const sec = tpl.sections.find(s => s.id === secId);
+      if (sec) {
+        sec.height = height;
+        saveToLS();
+        
+        const planCard = document.getElementById(`sec-${secId}`);
+        if (planCard) {
+          planCard.className = `section-card width-${sec.width || 'full'} height-${height}`;
+        }
+        const custCard = document.getElementById(`csec-${secId}`);
+        if (custCard) {
+          custCard.className = `section-card width-${sec.width || 'full'} height-${height}`;
+        }
+      }
+    }
+
+    function toggleCardNotes(secId, show) {
+      flushAutoSave();
+      const tpl = getTemplate(state.currentTemplateId);
+      const sec = tpl.sections.find(s => s.id === secId);
+      if (sec) {
+        sec.showNotes = show;
+        saveToLS();
+        
+        const planCard = document.getElementById(`sec-${secId}`);
+        if (planCard) {
+          const bodyContainer = planCard.querySelector('.section-body');
+          if (bodyContainer) {
+            const plan = getPlanOrDefault(state.currentDate);
+            const secData = plan.sections.find(s => s.sectionId === secId);
+            bodyContainer.innerHTML = renderSectionBody(sec, secData ? secData.rows : null);
+          }
+        }
+        const custCard = document.getElementById(`csec-${secId}`);
+        if (custCard) {
+          const bodyContainer = custCard.querySelector('.section-body');
+          if (bodyContainer) {
+            bodyContainer.innerHTML = renderSectionBody(sec, null, true);
+          }
+        }
+        autoResizeAll();
+      }
+    }
+
+    // Direct Plan drag and drop reordering
+    let planDragSrc = null;
+
+    function planDragStart(e, id) {
+      planDragSrc = id;
+      e.dataTransfer.setData('text/plain', id);
+      e.dataTransfer.effectAllowed = 'move';
+      document.getElementById(`sec-${id}`).classList.add('dragging');
+    }
+
+    function planDragOver(e, id) {
+      e.preventDefault();
+      const card = document.getElementById(`sec-${id}`);
+      if (card && id !== planDragSrc) {
+        card.classList.add('dragover');
+      }
+    }
+
+    function planDragLeave(e, id) {
+      const card = document.getElementById(`sec-${id}`);
+      if (card) {
+        card.classList.remove('dragover');
+      }
+    }
+
+    function planDragEnd() {
+      document.querySelectorAll('.section-card').forEach(c => {
+        c.classList.remove('dragging', 'dragover');
+      });
+    }
+
+    function planDragDrop(e, dstId) {
+      e.preventDefault();
+      e.stopPropagation();
+      const payload = e.dataTransfer.getData('text/plain');
+      if (payload === dstId) {
+        planDragEnd();
+        return;
+      }
+      
+      const tpl = getTemplate(state.currentTemplateId);
+      const srcIdx = tpl.sections.findIndex(s => s.id === payload);
+      const dstIdx = tpl.sections.findIndex(s => s.id === dstId);
+      
+      if (srcIdx > -1 && dstIdx > -1) {
+        flushAutoSave();
+        const [moved] = tpl.sections.splice(srcIdx, 1);
+        tpl.sections.splice(dstIdx, 0, moved);
+        saveToLS();
+        renderPlan();
+      }
+      planDragEnd();
+    }
+
+    function updateSectionLabels(secId, text) {
+      flushAutoSave();
+      const tpl = getTemplate(state.currentTemplateId);
+      const sec = tpl.sections.find(s => s.id === secId);
+      if (sec) {
+        sec.rows = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        saveToLS();
+        renderCustomize();
+        renderPlan();
+      }
+    }
+
+    function renderSettingsPanel(sec, isPreview = false) {
+      const panelId = isPreview ? `csettings-${sec.id}` : `settings-${sec.id}`;
+      
+      let labelsEditor = '';
+      if ((sec.type === 'hourly' || sec.type === 'timeblock') && isPreview) {
+        labelsEditor = `
+          <div style="width:100%; margin-top:10px;">
+            <p style="font-size:11px; margin-bottom:4px; color:var(--p-muted);">Custom Labels (one per line):</p>
+            <textarea onchange="updateSectionLabels('${sec.id}', this.value)" style="width:100%; height:80px; font-size:12px; padding:6px; font-family:'Outfit',sans-serif; border:1px solid var(--p-border); border-radius:4px; outline:none;" placeholder="Enter custom times, e.g. 6:00 AM">${sec.rows.join('\n')}</textarea>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="card-settings-panel" id="${panelId}" style="display:none; flex-wrap:wrap; gap:10px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span>Width:</span>
+            <select onchange="updateCardWidth('${sec.id}', this.value)" style="padding: 4px 6px; font-size:11px; border-radius:4px;">
+              <option value="full" ${sec.width === 'full' || !sec.width ? 'selected' : ''}>Full Width</option>
+              <option value="half" ${sec.width === 'half' ? 'selected' : ''}>Half Width</option>
+            </select>
+          </div>
+          
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span>Height:</span>
+            <select onchange="updateCardHeight('${sec.id}', this.value)" style="padding: 4px 6px; font-size:11px; border-radius:4px;">
+              <option value="small" ${sec.height === 'small' ? 'selected' : ''}>Small</option>
+              <option value="medium" ${sec.height === 'medium' || !sec.height ? 'selected' : ''}>Medium</option>
+              <option value="large" ${sec.height === 'large' ? 'selected' : ''}>Large</option>
+            </select>
+          </div>
+          
+          <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+            <input type="checkbox" onchange="toggleCardNotes('${sec.id}', this.checked)" ${sec.showNotes ? 'checked' : ''} style="cursor:pointer; accent-color:var(--p-accent);">
+            <span>Include Notes</span>
+          </label>
+          
+          <button class="btn sm danger" onclick="removeSection('${sec.id}')" style="padding:4px 8px; font-size:11px; margin-left:auto;"><i class="ti ti-trash"></i> Delete</button>
+          
+          ${labelsEditor}
+        </div>
+      `;
+    }
+
+    function renderSectionBody(sec,rowData,isPreview=false){
+      const rows=rowData||sec.rows;
+      const dSec = isPreview ? '' : `data-sec="${sec.id}"`;
+      const notesId = isPreview ? '' : `id="notes-${sec.id}"`;
+      const moodValId = isPreview ? '' : `id="mood-val-${sec.id}"`;
+      const energySliderId = isPreview ? '' : `id="energy-slider-${sec.id}"`;
+      const energyLabelId = isPreview ? '' : `id="energy-label-${sec.id}"`;
+      
+      let body='';
+      if(sec.type==='hourly'||sec.type==='timeblock'){
+        body=sec.rows.map((lbl,i)=>`
+          <div class="time-row">
+            <span class="time-label">${lbl}</span>
+            <textarea class="line-input" rows="1" ${dSec} style="resize:none">${rows[i]||''}</textarea>
+          </div>`).join('');
+        body+=isPreview ? '' : `<button class="add-row-btn" onclick="addTimeRow('${sec.id}')"><i class="ti ti-plus" aria-hidden="true"></i> add slot</button>`;
+      }else if(sec.type==='priorities'||sec.type==='gratitude'){
+        body=sec.rows.map((r,i)=>`
+          <div class="priority-row">
+            <div class="priority-num">${i+1}</div>
+            <textarea class="line-input" rows="1" ${dSec} style="resize:none">${rows[i]||''}</textarea>
+          </div>`).join('');
+        body+=isPreview ? '' : `<button class="add-row-btn" onclick="addBulletRow('${sec.id}')"><i class="ti ti-plus" aria-hidden="true"></i> add</button>`;
+      }else if(sec.type==='tasks'){
+        body=sec.rows.map((r,i)=>`
+          <div class="bullet-row">
+            <div class="bullet-dot"></div>
+            <textarea class="line-input" rows="1" ${dSec} style="resize:none">${rows[i]||''}</textarea>
+          </div>`).join('');
+        body+=isPreview ? '' : `<button class="add-row-btn" onclick="addBulletRow('${sec.id}')"><i class="ti ti-plus" aria-hidden="true"></i> add task</button>`;
+      }else if(sec.type==='notes'){
+        body=`<textarea class="notes-area" ${notesId} ${dSec}>${rows[0]||''}</textarea>`;
+      }else if(sec.type==='reflection'){
+        body=`
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-family:'Outfit',sans-serif; font-size:12px; color:var(--p-muted);">Reflect on your day</span>
+              ${isPreview ? '' : `<button class="btn sm" style="padding:4px 8px; font-size:11px;" onclick="generateReflectionPrompt('${sec.id}')">
+                <i class="ti ti-sparkles" aria-hidden="true"></i> get prompt
+              </button>`}
+            </div>
+            <textarea class="notes-area" ${notesId} ${dSec}>${rows[0]||''}</textarea>
+          </div>`;
+      }else if(sec.type==='habits'){
+        const dLabels=['M','T','W','T','F','S','S'];
+        body='<div class="habit-grid" style="margin-bottom:8px">'+dLabels.map(l=>`<span></span><span class="day-label">${l}</span>`).join('')+'</div>';
+        body+=sec.rows.map((h,ri)=>{
+          const hName = rowData ? rowData[ri * 8] : h;
+          return `
+          <div class="habit-grid" style="margin-top:6px">
+            <input class="line-input" value="${hName||''}" ${dSec} placeholder="habit..." style="font-family:'Outfit',sans-serif; font-weight:500;">
+            ${[0,1,2,3,4,5,6].map(di=>{
+              const checked = rowData ? !!rowData[ri * 8 + 1 + di] : false;
+              return `<input type="checkbox" class="habit-cb" ${dSec} ${checked?'checked':''}>`;
+            }).join('')}
+          </div>`;
+        }).join('');
+        body+=isPreview ? '' : `<button class="add-row-btn" style="margin-top:12px" onclick="addHabit('${sec.id}')"><i class="ti ti-plus" aria-hidden="true"></i> add habit</button>`;
+      }else if(sec.type==='appointments'){
+        body=sec.rows.map((r,ri)=>{
+          const timeVal = rowData ? rowData[ri * 2] : '';
+          const descVal = rowData ? rowData[ri * 2 + 1] : '';
+          return `
+          <div class="time-row">
+            <input class="line-input" placeholder="time" ${dSec} value="${timeVal}" style="font-family:'Outfit',sans-serif; font-weight:500;">
+            <textarea class="line-input" rows="1" ${dSec} style="resize:none">${descVal}</textarea>
+          </div>`;
+        }).join('');
+        body+=isPreview ? '' : `<button class="add-row-btn" onclick="addAppointmentRow('${sec.id}')"><i class="ti ti-plus" aria-hidden="true"></i> add appointment</button>`;
+      }else if(sec.type==='mood'){
+        const selectedMood = rowData ? rowData[0] : '';
+        const selectedEnergy = rowData ? rowData[1] : '3';
+        const emojis = [
+          {char:'😢', label:'Awful'},
+          {char:'😕', label:'Bad'},
+          {char:'😐', label:'Okay'},
+          {char:'🙂', label:'Good'},
+          {char:'😄', label:'Great'}
+        ];
+        body = `
+          <div style="display:flex; flex-direction:column; gap:1.25rem;">
+            <div>
+              <p style="font-family:'Outfit',sans-serif; font-size:12px; color:var(--p-muted); margin-bottom:8px; font-weight:500;">HOW DO YOU FEEL?</p>
+              <div class="mood-selectors">
+                ${emojis.map(e => `
+                  <button type="button" 
+                          class="mood-btn${selectedMood === e.char ? ' active' : ''}" 
+                          ${isPreview ? '' : `onclick="selectMood('${sec.id}', '${e.char}')"`} 
+                          title="${e.label}">
+                    ${e.char}
+                  </button>
+                `).join('')}
+              </div>
+              <input type="hidden" ${moodValId} ${dSec} value="${selectedMood}">
+            </div>
+            
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <p style="font-family:'Outfit',sans-serif; font-size:12px; color:var(--p-muted); font-weight:500;">ENERGY LEVEL</p>
+                <span ${energyLabelId} style="font-family:'Outfit',sans-serif; font-size:13px; font-weight:600; color:var(--p-accent);">${selectedEnergy}/5</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:14px;">🪫</span>
+                <input type="range" 
+                       ${energySliderId}
+                       ${dSec}
+                       min="1" 
+                       max="5" 
+                       value="${selectedEnergy}" 
+                       ${isPreview ? '' : `oninput="updateEnergyLabel('${sec.id}', this.value)"`}
+                       style="flex:1; accent-color:var(--p-accent); cursor:pointer; height:6px; border-radius:3px; background:var(--p-border); outline:none;">
+                <span style="font-size:14px;">🔋</span>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      // Add Section Notes if enabled, dynamically calculating correct index offset
+      let totalPrimaryInputs = 0;
+      if (sec.type === 'hourly' || sec.type === 'timeblock' || sec.type === 'priorities' || sec.type === 'gratitude' || sec.type === 'tasks') {
+        totalPrimaryInputs = sec.rows.length;
+      } else if (sec.type === 'notes' || sec.type === 'reflection') {
+        totalPrimaryInputs = 1;
+      } else if (sec.type === 'habits') {
+        totalPrimaryInputs = sec.rows.length * 8;
+      } else if (sec.type === 'appointments') {
+        totalPrimaryInputs = sec.rows.length * 2;
+      } else if (sec.type === 'mood') {
+        totalPrimaryInputs = 2;
+      }
+
+      if (sec.showNotes) {
+        const notesVal = (rowData && rowData.length > totalPrimaryInputs) ? rowData[totalPrimaryInputs] : '';
+        body += `
+          <div class="card-notes-wrapper" style="margin-top: 1.25rem; border-top: 1px dashed var(--p-border); padding-top: 0.75rem;">
+            <p style="font-family:'Outfit',sans-serif; font-size:11px; color:var(--p-muted); margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.03em;">Section Notes</p>
+            <textarea class="line-input" placeholder="Write additional notes here..." ${dSec} style="font-size:12px; font-family:'Lora',serif; min-height:50px; resize:vertical;">${notesVal}</textarea>
+          </div>`;
+      }
+      return body;
+    }
+
+    function renderSection(sec,rowData){
+      const body = renderSectionBody(sec, rowData);
+      const widthStyle = sec.customWidth ? `width:${sec.customWidth};` : (sec.width === 'half' ? `width:calc(50% - 0.625rem);` : `width:100%;`);
+      const heightStyle = sec.customHeight ? `min-height:${sec.customHeight}px;` : '';
+      return`
+        <div class="section-card height-${sec.height || 'medium'}" style="${widthStyle}" id="sec-${sec.id}">
+          <div class="section-header">
+            <span class="drag-handle" draggable="true" ondragstart="planDragStart(event, '${sec.id}')" ondragover="planDragOver(event, '${sec.id}')" ondragleave="planDragLeave(event, '${sec.id}')" ondrop="planDragDrop(event, '${sec.id}')" ondragend="planDragEnd()"><i class="ti ti-grip-vertical"></i></span>
+            <span style="font-family:'Outfit',sans-serif; font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:0.03em">${sec.label}</span>
+            <button class="btn sm" onclick="toggleCardSettings('${sec.id}', false, event)" style="padding:4px 8px; border:none; background:transparent; color:var(--p-muted); margin-left:auto;" aria-label="Toggle Settings"><i class="ti ti-settings"></i></button>
+          </div>
+          ${renderSettingsPanel(sec, false)}
+          <div class="section-body" style="${heightStyle}">${body}</div>
+        </div>`;
+    }
+
+    function renderPlan(){
+      const tpl=getTemplate(state.currentTemplateId);
+      const plan=getPlanOrDefault(state.currentDate);
+      const planMap={};
+      (plan.sections||[]).forEach(s=>{planMap[s.sectionId]=s.rows});
+      const html=tpl.sections.map(s=>renderSection(s,planMap[s.id])).join('');
+      document.getElementById('view-plan').innerHTML=html;
+      autoResizeAll();
+    }
+
+    function autoResizeAll(){
+      document.querySelectorAll('textarea').forEach(ta=>{
+        ta.style.height='auto';
+        ta.style.height=ta.scrollHeight+'px';
+        ta.oninput = function(){
+          this.style.height='auto';
+          this.style.height=this.scrollHeight+'px';
+        };
+      });
+    }
+
+    function guessNextTime(lastTimeStr) {
+      if (!lastTimeStr) return '';
+      const match12 = lastTimeStr.trim().match(/^(\d{1,2})(:\d{2})?\s*(AM|PM)$/i);
+      if (match12) {
+        let hour = parseInt(match12[1], 10);
+        const min = match12[2] || '';
+        let ampm = match12[3].toUpperCase();
+        if (hour === 11) {
+          hour = 12;
+          ampm = ampm === 'AM' ? 'PM' : 'AM';
+        } else if (hour === 12) {
+          hour = 1;
+        } else {
+          hour += 1;
+        }
+        return `${hour}${min} ${ampm}`;
+      }
+      const match24 = lastTimeStr.trim().match(/^(\d{1,2})(:?\d{2})$/);
+      if (match24) {
+        let hour = parseInt(match24[1], 10);
+        const min = match24[2] || '';
+        hour = (hour + 1) % 24;
+        const hStr = hour.toString().padStart(match24[1].length, '0');
+        return `${hStr}${min}`;
+      }
+      return '';
+    }
+
+    function addTimeRow(secId){
+      const tpl=getTemplate(state.currentTemplateId);
+      const sec=tpl.sections.find(s=>s.id===secId);
+      if(sec){
+        let nextTime = '';
+        if (sec.rows && sec.rows.length > 0) {
+          nextTime = guessNextTime(sec.rows[sec.rows.length - 1]);
+        }
+        sec.rows.push(nextTime);
+        saveToLS();
+        renderCustomize();
+        renderPlan();
+        triggerAutoSave();
+      }
+    }
+    function addBulletRow(secId){
+      const tpl=getTemplate(state.currentTemplateId);
+      const sec=tpl.sections.find(s=>s.id===secId);
+      if(sec){
+        sec.rows.push('');
+        renderPlan();
+        triggerAutoSave();
+      }
+    }
+    function addHabit(secId){
+      const tpl=getTemplate(state.currentTemplateId);
+      const sec=tpl.sections.find(s=>s.id===secId);
+      if(sec){
+        sec.rows.push('');
+        renderPlan();
+        triggerAutoSave();
+      }
+    }
+    function addAppointmentRow(secId){
+      const tpl=getTemplate(state.currentTemplateId);
+      const sec=tpl.sections.find(s=>s.id===secId);
+      if(sec){
+        sec.rows.push('');
+        renderPlan();
+        triggerAutoSave();
+      }
+    }
+
+    function renderCustomize(){
+      const tpl=getTemplate(state.currentTemplateId);
+      
+      // Left Toolbox panel layout HTML
+      let toolboxHtml = `
+        <div class="toolbox-container">
+          <div class="toolbox-title">Features</div>
+          <div style="font-family:'Outfit',sans-serif; font-size:12px; color:var(--p-muted); margin-bottom:1rem; line-height:1.4;">
+            Drag features and drop them onto the canvas on the right to build your custom layout. You can also click them to append at the bottom.
+          </div>
+          <div class="toolbox-list">
+            ${SECTION_TYPES.map(st => `
+              <div class="toolbox-item" draggable="true" ondragstart="toolboxDragStart(event, '${st.type}')" onclick="addSection('${st.type}')">
+                <i class="ti ${st.icon}"></i> ${st.label}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+      
+      // Right Canvas panel layout HTML
+      let canvasHtml = `
+        <div class="canvas-container">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:10px;">
+            <div style="display:flex; gap:.75rem; align-items:center;">
+              <span style="font-family:'Outfit',sans-serif; font-size:13px; color:var(--p-muted)">Editing Template:</span>
+              <strong style="font-family:'Outfit',sans-serif; font-size:14px; font-weight:600">${tpl.name}</strong>
+            </div>
+            <div style="display:flex; gap:.5rem;">
+              <button class="btn sm" onclick="renameTpl('${tpl.id}')"><i class="ti ti-edit" aria-hidden="true"></i> rename</button>
+              <button class="btn sm" onclick="cloneTpl('${tpl.id}')"><i class="ti ti-copy" aria-hidden="true"></i> duplicate</button>
+              <button class="btn sm danger" onclick="deleteTpl('${tpl.id}')"><i class="ti ti-trash" aria-hidden="true"></i> delete</button>
+            </div>
+          </div>
+          
+          <div id="section-list" style="min-height:350px;" ondragover="event.preventDefault()" ondrop="canvasDropBottom(event)">
+      `;
+      
+      if (tpl.sections.length === 0) {
+        canvasHtml += `
+          <div class="canvas-empty" ondragover="canvasDragOverEmpty(event)" ondragleave="canvasDragLeaveEmpty(event)" ondrop="canvasDropBottom(event)">
+            <i class="ti ti-layout-grid-add" aria-hidden="true"></i>
+            <p>Your Canvas is Empty</p>
+            <span>Drag items from the left features list and drop them here, or click them to start building your layout.</span>
+          </div>
+        `;
+      } else {
+        canvasHtml += tpl.sections.map((sec,i)=>{
+          const sampleBody = renderSectionBody(sec, null, true);
+          const widthStyle = sec.customWidth ? `width:${sec.customWidth};` : (sec.width === 'half' ? `width:calc(50% - 0.625rem);` : `width:100%;`);
+          const heightStyle = sec.customHeight ? `min-height:${sec.customHeight}px;` : '';
+          return `
+            <div class="section-card height-${sec.height || 'medium'}" style="${widthStyle}" id="csec-${sec.id}" ondragover="dragOver(event,'${sec.id}')" ondragleave="dragLeave(event,'${sec.id}')" ondrop="dragDrop(event,'${sec.id}')">
+              <div class="section-header">
+                <span class="drag-handle" draggable="true" ondragstart="dragStart(event,'${sec.id}')" ondragend="dragEnd()"><i class="ti ti-grip-vertical"></i></span>
+                <input class="section-title-input" value="${sec.label}" onchange="renameSection('${sec.id}',this.value)">
+                <span style="font-family:'Outfit',sans-serif; font-size:10px; font-weight:600; text-transform:uppercase; color:var(--p-muted); background:var(--p-tag-bg); padding:2px 6px; border-radius:4px; margin-right:6px; letter-spacing:0.02em; max-width:70px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${sec.type}">${sec.type}</span>
+                <button class="btn sm danger" onclick="removeSection('${sec.id}')" style="padding:4px 8px; border:none; background:transparent;" title="Remove Feature"><i class="ti ti-trash"></i></button>
+                <button class="btn sm" onclick="toggleCardSettings('${sec.id}', true, event)" style="padding:4px 8px; border:none; background:transparent; color:var(--p-muted);" aria-label="Toggle Settings"><i class="ti ti-settings"></i></button>
+              </div>
+              ${renderSettingsPanel(sec, true)}
+              <div class="section-body" style="pointer-events:none; opacity:0.85; ${heightStyle}">${sampleBody}</div>
+              <div class="resize-handle resize-right" onmousedown="startResize(event, '${sec.id}', 'right')"></div>
+              <div class="resize-handle resize-bottom" onmousedown="startResize(event, '${sec.id}', 'bottom')"></div>
+              <div class="resize-handle resize-corner" onmousedown="startResize(event, '${sec.id}', 'corner')"></div>
+            </div>`;
+        }).join('');
+      }
+      
+      canvasHtml += `
+          </div>
+        </div>
+      `;
+      
+      document.getElementById('view-customize').innerHTML = `
+        <div class="builder-layout">
+          ${toolboxHtml}
+          ${canvasHtml}
+        </div>
+      `;
+    }
+
+    let dragSrc=null;
+
+    function toolboxDragStart(e, type) {
+      e.dataTransfer.setData('text/plain', type);
+      e.dataTransfer.setData('source', 'toolbox');
+      e.dataTransfer.effectAllowed = 'copyMove';
+    }
+
+    function dragStart(e,id){
+      dragSrc=id;
+      const card = document.getElementById(`csec-${id}`);
+      if(card) card.classList.add('dragging');
+      e.dataTransfer.setData('text/plain', id);
+      e.dataTransfer.setData('source', 'canvas');
+      e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function dragOver(e,id){
+      e.preventDefault();
+      const card = document.getElementById(`csec-${id}`);
+      if(card && id !== dragSrc){
+        card.classList.add('dragover');
+      }
+    }
+
+    function dragLeave(e,id){
+      const card = document.getElementById(`csec-${id}`);
+      if(card){
+        card.classList.remove('dragover');
+      }
+    }
+
+    function dragEnd(){
+      document.querySelectorAll('.section-card').forEach(c=>{
+        c.classList.remove('dragging', 'dragover');
+      });
+      const emptyZone = document.querySelector('.canvas-empty');
+      if (emptyZone) emptyZone.classList.remove('dragover');
+    }
+
+    function canvasDragOverEmpty(e) {
+      e.preventDefault();
+      const emptyZone = e.currentTarget;
+      emptyZone.classList.add('dragover');
+    }
+
+    function canvasDragLeaveEmpty(e) {
+      const emptyZone = e.currentTarget;
+      emptyZone.classList.remove('dragover');
+    }
+
+    function dragDrop(e,dstId){
+      e.preventDefault();
+      e.stopPropagation();
+      const source = e.dataTransfer.getData('source');
+      const payload = e.dataTransfer.getData('text/plain');
+      
+      const tpl = getTemplate(state.currentTemplateId);
+      const dstIdx = tpl.sections.findIndex(s => s.id === dstId);
+      
+      if (source === 'toolbox') {
+        const newSec = createSectionObject(payload);
+        tpl.sections.splice(dstIdx, 0, newSec);
+      } else if (source === 'canvas') {
+        if (payload === dstId) {
+          dragEnd();
+          return;
+        }
+        const srcIdx = tpl.sections.findIndex(s => s.id === payload);
+        if (srcIdx > -1) {
+          const [moved] = tpl.sections.splice(srcIdx, 1);
+          tpl.sections.splice(dstIdx, 0, moved);
+        }
+      }
+      
+      saveToLS();
+      initTemplateSelect();
+      renderCustomize();
+      renderPlan();
+      dragEnd();
+    }
+
+    function canvasDropBottom(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.target.id !== 'section-list' && !e.target.classList.contains('canvas-empty') && e.target.closest('.canvas-empty') === null) {
+        return;
+      }
+      
+      const source = e.dataTransfer.getData('source');
+      const payload = e.dataTransfer.getData('text/plain');
+      const tpl = getTemplate(state.currentTemplateId);
+      
+      if (source === 'toolbox') {
+        const newSec = createSectionObject(payload);
+        tpl.sections.push(newSec);
+      } else if (source === 'canvas') {
+        const srcIdx = tpl.sections.findIndex(s => s.id === payload);
+        if (srcIdx > -1) {
+          const [moved] = tpl.sections.splice(srcIdx, 1);
+          tpl.sections.push(moved);
+        }
+      }
+      
+      saveToLS();
+      initTemplateSelect();
+      renderCustomize();
+      renderPlan();
+      dragEnd();
+    }
+
+    let isResizing = false;
+    let resizeSecId = null;
+    let resizeEdge = null;
+    let startX = 0;
+    let startY = 0;
+    let startWidth = 0;
+    let startHeight = 0;
+
+    function startResize(e, secId, edge) {
+      e.preventDefault();
+      e.stopPropagation();
+      isResizing = true;
+      resizeSecId = secId;
+      resizeEdge = edge;
+      startX = e.clientX;
+      startY = e.clientY;
+      
+      const card = document.getElementById(`csec-${secId}`);
+      if (!card) return;
+      
+      startWidth = card.getBoundingClientRect().width;
+      const body = card.querySelector('.section-body');
+      startHeight = body.getBoundingClientRect().height;
+      
+      document.body.classList.add('is-resizing');
+      e.target.classList.add('active');
+    }
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isResizing || !resizeSecId) return;
+      
+      const card = document.getElementById(`csec-${resizeSecId}`);
+      if (!card) return;
+      
+      const containerWidth = document.getElementById('section-list').getBoundingClientRect().width;
+      const body = card.querySelector('.section-body');
+
+      if (resizeEdge === 'right' || resizeEdge === 'corner') {
+        let newWidth = startWidth + (e.clientX - startX);
+        let pct = (newWidth / containerWidth) * 100;
+        if (pct > 100) pct = 100;
+        if (pct < 15) pct = 15;
+        card.style.width = `${pct}%`;
+      }
+      
+      if (resizeEdge === 'bottom' || resizeEdge === 'corner') {
+        let newHeight = startHeight + (e.clientY - startY);
+        if (newHeight < 50) newHeight = 50;
+        body.style.minHeight = `${newHeight}px`;
+      }
+    });
+
+    document.addEventListener('mouseup', (e) => {
+      if (isResizing) {
+        isResizing = false;
+        document.body.classList.remove('is-resizing');
+        document.querySelectorAll('.resize-handle').forEach(el => el.classList.remove('active'));
+        
+        if (resizeSecId) {
+          const card = document.getElementById(`csec-${resizeSecId}`);
+          if (card) {
+            const body = card.querySelector('.section-body');
+            const newWidth = card.style.width;
+            const newHeight = parseFloat(body.style.minHeight);
+            
+            const tpl = getTemplate(state.currentTemplateId);
+            const sec = tpl.sections.find(s => s.id === resizeSecId);
+            if (sec) {
+              if (newWidth) sec.customWidth = newWidth;
+              if (newHeight) sec.customHeight = newHeight;
+              saveToLS();
+              renderPlan(); // Update main view with new dims
+            }
+          }
+        }
+        resizeSecId = null;
+        resizeEdge = null;
+      }
+    });
+
+    function createSectionObject(type) {
+      const stype = SECTION_TYPES.find(s => s.type === type);
+      const label = stype ? stype.label : 'New Section';
+      let rows = [];
+      let width = 'full';
+      
+      // Smart default widths based on item types
+      if (type === 'tasks' || type === 'mood' || type === 'priorities' || type === 'gratitude' || type === 'appointments') {
+        width = 'half';
+      }
+      
+      if (type === 'hourly') rows = ['9 AM', '10 AM', '11 AM', '12 PM'];
+      else if (type === 'priorities' || type === 'gratitude') rows = ['', '', ''];
+      else if (type === 'tasks') rows = ['', '', ''];
+      else if (type === 'notes' || type === 'reflection') rows = [''];
+      else if (type === 'habits') rows = ['Habit 1'];
+      else if (type === 'appointments') rows = [''];
+      else if (type === 'timeblock') rows = ['Morning', 'Afternoon', 'Evening'];
+      else if (type === 'mood') rows = ['', '3'];
+      
+      return {
+        id: uid(),
+        type,
+        label,
+        rows,
+        width,
+        height: 'medium',
+        showNotes: false
+      };
+    }
+
+    function renameSection(id,val){
+      const tpl=getTemplate(state.currentTemplateId);
+      const sec=tpl.sections.find(s=>s.id===id);
+      if(sec)sec.label=val;
+      saveToLS();
+    }
+    function removeSection(id){
+      flushAutoSave();
+      const tpl=getTemplate(state.currentTemplateId);
+      tpl.sections=tpl.sections.filter(s=>s.id!==id);
+      saveToLS();
+      renderCustomize();
+      renderPlan();
+    }
+    function addSection(type){
+      const tpl=getTemplate(state.currentTemplateId);
+      const newSec = createSectionObject(type);
+      tpl.sections.push(newSec);
+      saveToLS();
+      initTemplateSelect();
+      renderCustomize();
+      renderPlan();
+    }
+    function renameTpl(id){
+      const tpl=getTemplate(id);
+      const n=prompt('Template name:',tpl.name);
+      if(n){tpl.name=n;saveToLS();initTemplateSelect();renderCustomize();}
+    }
+    function cloneTpl(id){
+      const tpl=deepClone(getTemplate(id));
+      tpl.id=uid();tpl.name=tpl.name+' (copy)';
+      tpl.sections.forEach(s=>s.id=uid());
+      state.templates.push(tpl);
+      state.currentTemplateId=tpl.id;
+      saveToLS();initTemplateSelect();renderCustomize();
+      toast('template duplicated');
+    }
+
+    function renderExport(){
+      document.getElementById('view-export').innerHTML=`
+        <div style="display:flex;flex-direction:column;gap:1.25rem">
+          <p style="font-size:13px;color:var(--p-muted)">export and import your plans and templates as JSON.</p>
+          <div class="export-row" style="margin-top:0;border-top:none;padding-top:0; display:flex; gap:0.5rem; flex-wrap:wrap">
+            <button class="btn" onclick="exportPlans()"><i class="ti ti-download" aria-hidden="true"></i> export plans (JSON)</button>
+            <button class="btn" onclick="exportTemplates()"><i class="ti ti-download" aria-hidden="true"></i> export templates (JSON)</button>
+            <button class="btn" onclick="exportICS()"><i class="ti ti-calendar-share" aria-hidden="true"></i> export today (.ics)</button>
+          </div>
+          <div style="background:var(--p-bg); padding:1rem; border-radius:8px; border:1px solid var(--p-border)">
+            <p style="font-size:12px; font-weight:500; color:var(--p-muted); margin-bottom:.5rem">import from JSON file</p>
+            <input type="file" accept=".json" id="importFile" style="font-size:13px; font-family:'Outfit',sans-serif;" onchange="importJSON(event)">
+          </div>
+          <div style="margin-top:.5rem">
+            <p style="font-size:12px; font-weight:500; color:var(--p-muted); margin-bottom:.5rem">saved plan dates (${Object.keys(state.plans).length})</p>
+            <div style="display:flex;flex-wrap:wrap;gap:.4rem">
+              ${Object.keys(state.plans).sort().reverse().map(d=>`<span class="chip" style="cursor:default">${d}</span>`).join('')||'<span style="font-size:12px;color:var(--p-muted)">no saved plans yet</span>'}
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function exportPlans(){
+      const json=JSON.stringify(state.plans,null,2);
+      download('planner-plans.json',json,'application/json');
+      toast('plans exported');
+    }
+    function exportTemplates(){
+      const json=JSON.stringify(state.templates,null,2);
+      download('planner-templates.json',json,'application/json');
+      toast('templates exported');
+    }
+    function exportICS(){
+      const plan=state.plans[state.currentDate];
+      if(!plan){toast('save the plan first');return;}
+      const dt=state.currentDate.replace(/-/g,'');
+      let lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//DailyPlanner//EN'];
+      const tpl=getTemplate(plan.templateId);
+      plan.sections.forEach(ps=>{
+        const sec=tpl.sections.find(s=>s.id===ps.sectionId);
+        if(!sec)return;
+        if(sec.type==='hourly'||sec.type==='timeblock'){
+          sec.rows.forEach((lbl,i)=>{
+            const val=ps.rows[i];
+            if(val&&val.trim()){
+              lines.push('BEGIN:VEVENT');
+              lines.push('UID:'+uid()+'@planner');
+              lines.push('DTSTART;VALUE=DATE:'+dt);
+              lines.push('DTEND;VALUE=DATE:'+dt);
+              lines.push('SUMMARY:'+lbl+': '+val.replace(/\n/g,' '));
+              lines.push('END:VEVENT');
+            }
+          });
+        }
+      });
+      lines.push('END:VCALENDAR');
+      download(`plan-${state.currentDate}.ics`,lines.join('\r\n'),'text/calendar');
+      toast('.ics exported');
+    }
+    function importJSON(e){
+      const file=e.target.files[0];
+      if(!file)return;
+      const r=new FileReader();
+      r.onload=ev=>{
+        try{
+          const data=JSON.parse(ev.target.result);
+          if(Array.isArray(data)&&data[0]&&data[0].sections&&data[0].name){
+            state.templates=data;toast('templates imported');
+          }else if(typeof data==='object'&&!Array.isArray(data)){
+            Object.assign(state.plans,data);toast('plans imported');
+          }
+          saveToLS();initTemplateSelect();renderPlan();renderExport();
+        }catch{toast('invalid JSON');}
+      };
+      r.readAsText(file);
+    }
+
+    // Helper download trigger
+    function download(name,content,type){
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(new Blob([content],{type}));
+      a.download=name;a.click();
+    }
+
+    function showTab(tab){
+      flushAutoSave();
+      state.activeTab=tab;
+      ['plan','customize','export'].forEach(t=>{
+        document.getElementById('view-'+t).style.display=t===tab?'block':'none';
+        document.getElementById('tab-'+t).classList.toggle('active',t===tab);
+      });
+      if(tab==='customize')renderCustomize();
+      if(tab==='export')renderExport();
+      if(tab==='plan')renderPlan();
+    }
+
+    function init(){
+      // Self-healing migration for old local storage data
+      if (state.templates) {
+        state.templates.forEach(tpl => {
+          if (tpl.sections) {
+            tpl.sections.forEach(sec => {
+              if ((sec.type === 'priorities' || sec.type === 'gratitude') && sec.rows && sec.rows.length < 3) {
+                while (sec.rows.length < 3) {
+                  sec.rows.push('');
+                }
+              }
+            });
+          }
+        });
+        saveToLS();
+      }
+
+      document.documentElement.setAttribute('data-theme',state.theme);
+      initThemes();
+      initTemplateSelect();
+      initDateInput();
+      renderPlan();
+      initAutoSaveListener();
+      
+      // Register PWA Service Worker for offline installation support
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js')
+            .then(reg => console.log('Service Worker registered. Scope:', reg.scope))
+            .catch(err => console.error('Service Worker registration failed:', err));
+        });
+      }
+      
+      // Start background sync from cloud database
+      fetchFromCloud();
+    }
+    init();
+  </script>
+</body>
+</html>
