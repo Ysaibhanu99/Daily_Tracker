@@ -2,7 +2,7 @@
   "name": "Daily Planner Journal",
   "short_name": "Daily Planner",
   "description": "An elegant, client-side daily planner and productivity journal that works completely offline.",
-  "start_url": "daily_planner_app.html",
+  "start_url": "index.html",
   "display": "standalone",
   "background_color": "#f8fafc",
   "theme_color": "#2563eb",
