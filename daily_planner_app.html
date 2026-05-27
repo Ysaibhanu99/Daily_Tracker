@@ -916,6 +916,7 @@
       <input type="date" id="dateInput" onchange="loadDay()" aria-label="Select Date">
       <button class="btn sm" onclick="shiftDay(1)" aria-label="Next Day"><i class="ti ti-chevron-right" aria-hidden="true"></i></button>
       <button class="btn sm" onclick="goToday()">today</button>
+      <button class="btn sm" style="color:var(--danger); border-color:var(--danger);" onclick="clearDay()">clear day</button>
       <h2 id="dayLabel"></h2>
     </div>
 
@@ -1237,6 +1238,16 @@
       renderPlan();
     }
 
+    function clearDay(){
+      if (confirm('Are you sure you want to clear all data for this day? This will not affect your template layout.')) {
+        flushAutoSave();
+        delete state.plans[state.currentDate];
+        saveToLS();
+        renderPlan();
+        toast('Day cleared');
+      }
+    }
+
     function loadDay(){
       flushAutoSave();
       state.currentDate=document.getElementById('dateInput').value;
@@ -1251,7 +1262,20 @@
         const rows=[];
         const inputs=planView ? planView.querySelectorAll(`[data-sec="${sec.id}"]`) : [];
         inputs.forEach(inp=>rows.push(inp.type==='checkbox'?inp.checked:(inp.value||'')));
-        return{sectionId:sec.id,rows};
+        
+        let labels;
+        const labelInputs = planView ? planView.querySelectorAll(`[data-sec-label="${sec.id}"]`) : [];
+        if (labelInputs.length > 0) {
+          labels = [];
+          labelInputs.forEach(inp => labels.push(inp.value));
+        } else {
+          const oldPlan = state.plans[state.currentDate];
+          const oldSec = oldPlan ? oldPlan.sections.find(s => s.sectionId === sec.id) : null;
+          if (oldSec && oldSec.labels) {
+            labels = oldSec.labels;
+          }
+        }
+        return {sectionId:sec.id, rows, labels};
       });
       return{date:state.currentDate,templateId:state.currentTemplateId,sections};
     }
@@ -1488,25 +1512,39 @@
 
     function updateSectionLabels(secId, text) {
       flushAutoSave();
-      const tpl = getTemplate(state.currentTemplateId);
-      const sec = tpl.sections.find(s => s.id === secId);
-      if (sec) {
-        sec.rows = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-        saveToLS();
-        renderCustomize();
-        renderPlan();
+      if (state.activeTab === 'customize') {
+        const tpl = getTemplate(state.currentTemplateId);
+        const sec = tpl.sections.find(s => s.id === secId);
+        if (sec) {
+          sec.rows = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+          saveToLS();
+          renderCustomize();
+          renderPlan();
+        }
+      } else {
+        let plan = state.plans[state.currentDate] || getPlanOrDefault(state.currentDate);
+        state.plans[state.currentDate] = plan;
+        const sec = plan.sections.find(s => s.sectionId === secId);
+        if (sec) {
+          sec.labels = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+          // If we add fewer labels than we had rows, we might need to trim the rows? Or just let them sit. Let's just adjust lengths if necessary.
+          saveToLS();
+          renderPlan();
+          triggerAutoSave();
+        }
       }
     }
 
-    function renderSettingsPanel(sec, isPreview = false) {
+    function renderSettingsPanel(sec, isPreview = false, planSecData = null) {
       const panelId = isPreview ? `csettings-${sec.id}` : `settings-${sec.id}`;
       
       let labelsEditor = '';
-      if ((sec.type === 'hourly' || sec.type === 'timeblock') && isPreview) {
+      if (sec.type === 'hourly' || sec.type === 'timeblock') {
+        const currentLabels = (planSecData && planSecData.labels) ? planSecData.labels.join('\n') : sec.rows.join('\n');
         labelsEditor = `
           <div style="width:100%; margin-top:10px;">
             <p style="font-size:11px; margin-bottom:4px; color:var(--p-muted);">Custom Labels (one per line):</p>
-            <textarea onchange="updateSectionLabels('${sec.id}', this.value)" style="width:100%; height:80px; font-size:12px; padding:6px; font-family:'Outfit',sans-serif; border:1px solid var(--p-border); border-radius:4px; outline:none;" placeholder="Enter custom times, e.g. 6:00 AM">${sec.rows.join('\n')}</textarea>
+            <textarea class="settings-textarea" onchange="updateSectionLabels('${sec.id}', this.value)" style="width:100%; min-height:100px; font-size:12px; padding:6px; font-family:'Outfit',sans-serif; border:1px solid var(--p-border); border-radius:4px; outline:none; resize:vertical;" placeholder="Enter custom times, e.g. 6:00 AM">${currentLabels}</textarea>
           </div>
         `;
       }
@@ -1542,31 +1580,42 @@
       `;
     }
 
-    function renderSectionBody(sec,rowData,isPreview=false){
-      const rows=rowData||sec.rows;
-      const dSec = isPreview ? '' : `data-sec="${sec.id}"`;
+    function renderSectionBody(sec,planSecData,isPreview=false){
+      const dSec = isPreview ? 'disabled style="pointer-events:none"' : `data-sec="${sec.id}"`;
       const notesId = isPreview ? '' : `id="notes-${sec.id}"`;
       const moodValId = isPreview ? '' : `id="mood-val-${sec.id}"`;
       const energySliderId = isPreview ? '' : `id="energy-slider-${sec.id}"`;
       const energyLabelId = isPreview ? '' : `id="energy-label-${sec.id}"`;
       
+      const rows = (planSecData && planSecData.rows) ? planSecData.rows : sec.rows;
+      const planLabels = (planSecData && planSecData.labels) ? planSecData.labels : sec.rows;
+      
       let body='';
       if(sec.type==='hourly'||sec.type==='timeblock'){
-        body=sec.rows.map((lbl,i)=>`
+        const targetLen = Math.max(planLabels.length, rows.length);
+        const indices = Array.from({length: targetLen}, (_, i) => i);
+        body = indices.map(i => `
           <div class="time-row">
-            <span class="time-label">${lbl}</span>
+            ${isPreview
+              ? `<span class="time-label">${planLabels[i] || ''}</span>`
+              : `<input type="text" class="time-label-input" data-sec-label="${sec.id}" value="${planLabels[i] || ''}" style="width:75px; font-family:'Outfit',sans-serif; font-size:12px; font-weight:600; color:var(--p-muted); border:1px dashed var(--p-border); border-radius:4px; background:var(--p-surface); text-align:right; padding:2px 4px; outline:none; margin-right:4px;" placeholder="Time">`
+            }
             <textarea class="line-input" rows="1" ${dSec} style="resize:none">${rows[i]||''}</textarea>
           </div>`).join('');
         body+=isPreview ? '' : `<button class="add-row-btn" onclick="addTimeRow('${sec.id}')"><i class="ti ti-plus" aria-hidden="true"></i> add slot</button>`;
       }else if(sec.type==='priorities'||sec.type==='gratitude'){
-        body=sec.rows.map((r,i)=>`
+        const targetLen = Math.max(sec.rows.length, rows.length);
+        const indices = Array.from({length: targetLen}, (_, i) => i);
+        body = indices.map(i => `
           <div class="priority-row">
             <div class="priority-num">${i+1}</div>
             <textarea class="line-input" rows="1" ${dSec} style="resize:none">${rows[i]||''}</textarea>
           </div>`).join('');
         body+=isPreview ? '' : `<button class="add-row-btn" onclick="addBulletRow('${sec.id}')"><i class="ti ti-plus" aria-hidden="true"></i> add</button>`;
       }else if(sec.type==='tasks'){
-        body=sec.rows.map((r,i)=>`
+        const targetLen = Math.max(sec.rows.length, rows.length);
+        const indices = Array.from({length: targetLen}, (_, i) => i);
+        body = indices.map(i => `
           <div class="bullet-row">
             <div class="bullet-dot"></div>
             <textarea class="line-input" rows="1" ${dSec} style="resize:none">${rows[i]||''}</textarea>
@@ -1588,32 +1637,36 @@
       }else if(sec.type==='habits'){
         const dLabels=['M','T','W','T','F','S','S'];
         body='<div class="habit-grid" style="margin-bottom:8px">'+dLabels.map(l=>`<span></span><span class="day-label">${l}</span>`).join('')+'</div>';
-        body+=sec.rows.map((h,ri)=>{
-          const hName = rowData ? rowData[ri * 8] : h;
+        const targetLen = Math.max(sec.rows.length, rows.length / 8 || 0);
+        const indices = Array.from({length: targetLen}, (_, i) => i);
+        body += indices.map(ri => {
+          const hName = rows[ri * 8];
           return `
           <div class="habit-grid" style="margin-top:6px">
             <input class="line-input" value="${hName||''}" ${dSec} placeholder="habit..." style="font-family:'Outfit',sans-serif; font-weight:500;">
             ${[0,1,2,3,4,5,6].map(di=>{
-              const checked = rowData ? !!rowData[ri * 8 + 1 + di] : false;
+              const checked = !!rows[ri * 8 + 1 + di];
               return `<input type="checkbox" class="habit-cb" ${dSec} ${checked?'checked':''}>`;
             }).join('')}
           </div>`;
         }).join('');
         body+=isPreview ? '' : `<button class="add-row-btn" style="margin-top:12px" onclick="addHabit('${sec.id}')"><i class="ti ti-plus" aria-hidden="true"></i> add habit</button>`;
       }else if(sec.type==='appointments'){
-        body=sec.rows.map((r,ri)=>{
-          const timeVal = rowData ? rowData[ri * 2] : '';
-          const descVal = rowData ? rowData[ri * 2 + 1] : '';
+        const targetLen = Math.max(sec.rows.length, rows.length / 2 || 0);
+        const indices = Array.from({length: targetLen}, (_, i) => i);
+        body = indices.map(ri => {
+          const timeVal = rows[ri * 2];
+          const descVal = rows[ri * 2 + 1];
           return `
           <div class="time-row">
-            <input class="line-input" placeholder="time" ${dSec} value="${timeVal}" style="font-family:'Outfit',sans-serif; font-weight:500;">
-            <textarea class="line-input" rows="1" ${dSec} style="resize:none">${descVal}</textarea>
+            <input class="line-input" placeholder="time" ${dSec} value="${timeVal||''}" style="font-family:'Outfit',sans-serif; font-weight:500;">
+            <textarea class="line-input" rows="1" ${dSec} style="resize:none">${descVal||''}</textarea>
           </div>`;
         }).join('');
         body+=isPreview ? '' : `<button class="add-row-btn" onclick="addAppointmentRow('${sec.id}')"><i class="ti ti-plus" aria-hidden="true"></i> add appointment</button>`;
       }else if(sec.type==='mood'){
-        const selectedMood = rowData ? rowData[0] : '';
-        const selectedEnergy = rowData ? rowData[1] : '3';
+        const selectedMood = rows[0] || '';
+        const selectedEnergy = rows[1] || '3';
         const emojis = [
           {char:'😢', label:'Awful'},
           {char:'😕', label:'Bad'},
@@ -1674,7 +1727,7 @@
       }
 
       if (sec.showNotes) {
-        const notesVal = (rowData && rowData.length > totalPrimaryInputs) ? rowData[totalPrimaryInputs] : '';
+        const notesVal = rows.length > totalPrimaryInputs ? rows[totalPrimaryInputs] : '';
         body += `
           <div class="card-notes-wrapper" style="margin-top: 1.25rem; border-top: 1px dashed var(--p-border); padding-top: 0.75rem;">
             <p style="font-family:'Outfit',sans-serif; font-size:11px; color:var(--p-muted); margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.03em;">Section Notes</p>
@@ -1684,8 +1737,8 @@
       return body;
     }
 
-    function renderSection(sec,rowData){
-      const body = renderSectionBody(sec, rowData);
+    function renderSection(sec,planSecData){
+      const body = renderSectionBody(sec, planSecData);
       const widthStyle = sec.customWidth ? `width:${sec.customWidth};` : (sec.width === 'half' ? `width:calc(50% - 0.625rem);` : `width:100%;`);
       const heightStyle = sec.customHeight ? `min-height:${sec.customHeight}px;` : '';
       return`
@@ -1695,7 +1748,7 @@
             <span style="font-family:'Outfit',sans-serif; font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:0.03em">${sec.label}</span>
             <button class="btn sm" onclick="toggleCardSettings('${sec.id}', false, event)" style="padding:4px 8px; border:none; background:transparent; color:var(--p-muted); margin-left:auto;" aria-label="Toggle Settings"><i class="ti ti-settings"></i></button>
           </div>
-          ${renderSettingsPanel(sec, false)}
+          ${renderSettingsPanel(sec, false, planSecData)}
           <div class="section-body" style="${heightStyle}">${body}</div>
         </div>`;
     }
@@ -1704,14 +1757,14 @@
       const tpl=getTemplate(state.currentTemplateId);
       const plan=getPlanOrDefault(state.currentDate);
       const planMap={};
-      (plan.sections||[]).forEach(s=>{planMap[s.sectionId]=s.rows});
+      (plan.sections||[]).forEach(s=>{planMap[s.sectionId]=s});
       const html=tpl.sections.map(s=>renderSection(s,planMap[s.id])).join('');
       document.getElementById('view-plan').innerHTML=html;
       autoResizeAll();
     }
 
     function autoResizeAll(){
-      document.querySelectorAll('textarea').forEach(ta=>{
+      document.querySelectorAll('textarea:not(.settings-textarea)').forEach(ta=>{
         ta.style.height='auto';
         ta.style.height=ta.scrollHeight+'px';
         ta.oninput = function(){
@@ -1749,47 +1802,45 @@
       return '';
     }
 
-    function addTimeRow(secId){
-      const tpl=getTemplate(state.currentTemplateId);
-      const sec=tpl.sections.find(s=>s.id===secId);
-      if(sec){
-        let nextTime = '';
-        if (sec.rows && sec.rows.length > 0) {
-          nextTime = guessNextTime(sec.rows[sec.rows.length - 1]);
-        }
-        sec.rows.push(nextTime);
-        saveToLS();
-        renderCustomize();
-        renderPlan();
-        triggerAutoSave();
+    function _addDynamicRow(secId, getNext) {
+      if (state.activeTab === 'customize') {
+         const tpl=getTemplate(state.currentTemplateId);
+         const sec=tpl.sections.find(s=>s.id===secId);
+         if(sec){
+           sec.rows.push(getNext(sec.rows));
+           saveToLS();
+           renderCustomize();
+         }
+      } else {
+         flushAutoSave();
+         let plan = state.plans[state.currentDate] || getPlanOrDefault(state.currentDate);
+         state.plans[state.currentDate] = plan;
+         const sec = plan.sections.find(s=>s.sectionId===secId);
+         if(sec) {
+           if (!sec.labels) {
+             const tplSec = getTemplate(state.currentTemplateId).sections.find(s=>s.id===secId);
+             sec.labels = deepClone(tplSec.rows);
+           }
+           sec.labels.push(getNext(sec.labels));
+           sec.rows.push(''); 
+           saveToLS();
+           renderPlan();
+           triggerAutoSave();
+         }
       }
+    }
+
+    function addTimeRow(secId){
+      _addDynamicRow(secId, (arr) => arr.length > 0 ? guessNextTime(arr[arr.length - 1]) : '');
     }
     function addBulletRow(secId){
-      const tpl=getTemplate(state.currentTemplateId);
-      const sec=tpl.sections.find(s=>s.id===secId);
-      if(sec){
-        sec.rows.push('');
-        renderPlan();
-        triggerAutoSave();
-      }
+      _addDynamicRow(secId, () => '');
     }
     function addHabit(secId){
-      const tpl=getTemplate(state.currentTemplateId);
-      const sec=tpl.sections.find(s=>s.id===secId);
-      if(sec){
-        sec.rows.push('');
-        renderPlan();
-        triggerAutoSave();
-      }
+      _addDynamicRow(secId, () => '');
     }
     function addAppointmentRow(secId){
-      const tpl=getTemplate(state.currentTemplateId);
-      const sec=tpl.sections.find(s=>s.id===secId);
-      if(sec){
-        sec.rows.push('');
-        renderPlan();
-        triggerAutoSave();
-      }
+      _addDynamicRow(secId, () => '');
     }
 
     function renderCustomize(){
@@ -2253,6 +2304,22 @@
       initDateInput();
       renderPlan();
       initAutoSaveListener();
+      
+      let lastKnownToday = todayStr();
+      setInterval(() => {
+        const realToday = todayStr();
+        if (realToday !== lastKnownToday) {
+          if (state.currentDate === lastKnownToday) {
+            state.currentDate = realToday;
+            const di = document.getElementById('dateInput');
+            if(di) di.value = state.currentDate;
+            updateDayLabel();
+            renderPlan();
+            toast('Switched to a new day!');
+          }
+          lastKnownToday = realToday;
+        }
+      }, 60000);
       
       // Register PWA Service Worker for offline installation support
       if ('serviceWorker' in navigator) {
