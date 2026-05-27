@@ -1,4 +1,4 @@
-const CACHE_NAME = 'daily-planner-cache-v6';
+const CACHE_NAME = 'daily-planner-cache-v7';
 const ASSETS_TO_CACHE = [
   'index.html',
   'manifest.json',
@@ -30,8 +30,14 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // Let the browser load non-GET requests normally (e.g. Chrome extension calls)
+  // Let the browser load non-GET requests normally (e.g. POST to /api/plans)
   if (event.request.method !== 'GET') return;
+
+  // NEVER cache API calls — always go to the network for fresh data
+  if (event.request.url.includes('/api/')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request)
