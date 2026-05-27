@@ -1058,6 +1058,7 @@
 
     let syncTimeout = null;
     let isSyncing = false;
+    let cloudReady = false;
 
     function setSyncStatus(status) {
       const syncStatusEl = document.getElementById('sync-status');
@@ -1082,6 +1083,7 @@
     }
 
     async function syncWithCloud(force = false) {
+      if (!cloudReady) return; // Don't push to cloud until initial fetch is done
       if (!force) {
         clearTimeout(syncTimeout);
         syncTimeout = setTimeout(() => syncWithCloud(true), 1500);
@@ -1150,9 +1152,11 @@
           renderPlan();
           if(state.activeTab === 'customize') renderCustomize();
         }
+        cloudReady = true;
         setSyncStatus('synced');
       } catch(err) {
         console.error("Failed to load from cloud. Using local storage only.", err);
+        cloudReady = true; // Still allow syncing even if first fetch fails
         setSyncStatus('error');
       }
     }
@@ -2290,7 +2294,7 @@
     }
 
     function init(){
-      // Self-healing migration for old local storage data
+      // Self-healing migration for old local storage data (local only, no cloud sync)
       if (state.templates) {
         state.templates.forEach(tpl => {
           if (tpl.sections) {
@@ -2303,7 +2307,8 @@
             });
           }
         });
-        saveToLS();
+        // Save locally only — do NOT sync to cloud yet
+        localStorage.setItem('planner_templates',JSON.stringify(state.templates));
       }
 
       document.documentElement.setAttribute('data-theme',state.theme);
