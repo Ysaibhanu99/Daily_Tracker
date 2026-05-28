@@ -44,8 +44,9 @@ If you want to run this project on your own machine, follow these steps:
 
 3. **Open the Frontend**
    Just double-click and open the `daily_planner_app.html` file in any web browser! No front-end build steps required.
+4.  **open live website in**
+   https://daily-tracker-0bjh.onrender.com/
 
 ## Things I learned
 Building this was a really fun challenge. Moving from CSS Grid to Flexbox to make the widgets freely resizable taught me a lot about responsive design, and figuring out how to silently sync local browser storage data with a live remote Postgres database using Node.js was a fantastic full-stack learning experience!
-4.  **open live website in**
-     https://daily-tracker-0bjh.onrender.com/
+
