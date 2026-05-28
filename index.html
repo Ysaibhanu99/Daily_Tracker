@@ -462,7 +462,7 @@
     /* Daily Log Entry Inputs */
     .time-row {
       display: grid;
-      grid-template-columns: 80px 1fr;
+      grid-template-columns: 80px 1fr auto;
       gap: 12px;
       margin-bottom: 8px;
       align-items: start;
@@ -535,10 +535,87 @@
       margin-top: 10px;
     }
 
+    /* Task Checkbox Styling */
+    .task-checkbox {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--p-border);
+      border-radius: 4px;
+      outline: none;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      flex-shrink: 0;
+      margin-top: 5px;
+      background: var(--p-surface);
+      position: relative;
+    }
+    .task-checkbox:checked {
+      background: var(--p-accent);
+      border-color: var(--p-accent);
+    }
+    .task-checkbox:checked::after {
+      content: '\2713';
+      position: absolute;
+      top: -1px;
+      left: 2px;
+      font-size: 13px;
+      color: #fff;
+      font-weight: 700;
+    }
+    .task-checkbox:hover {
+      border-color: var(--p-accent);
+      transform: scale(1.1);
+    }
+    .bullet-row.task-done .line-input {
+      text-decoration: line-through;
+      color: var(--p-muted);
+      opacity: 0.6;
+    }
+
+    /* Remove Row Button */
+    .remove-row-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--p-muted);
+      font-size: 14px;
+      padding: 4px;
+      border-radius: 4px;
+      opacity: 0;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+      margin-top: 3px;
+      line-height: 1;
+    }
+    .remove-row-btn:hover {
+      color: #ef4444;
+      background: rgba(239,68,68,0.1);
+    }
+    .time-row:hover .remove-row-btn,
+    .bullet-row:hover .remove-row-btn,
+    .priority-row:hover .remove-row-btn,
+    .habit-grid:hover .remove-row-btn {
+      opacity: 1;
+    }
+    @media (pointer: coarse) {
+      .remove-row-btn { opacity: 0.7; }
+    }
+
+    /* Past Time Slot Styling */
+    .time-row.time-past {
+      opacity: 0.45;
+    }
+    .time-row.time-past .line-input {
+      text-decoration: line-through;
+      color: var(--p-muted);
+    }
+
     /* Habits Tracker Modern Polish */
     .habit-grid {
       display: grid;
-      grid-template-columns: 1fr repeat(7, 34px);
+      grid-template-columns: 1fr repeat(7, 34px) auto;
       gap: 8px;
       align-items: center;
     }
@@ -625,7 +702,7 @@
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
     }
 
-    .add-row-btn {
+    .add-row-btn, .remove-all-btn {
       font-family: 'Outfit', sans-serif;
       font-size: 12px;
       font-weight: 500;
@@ -639,10 +716,23 @@
       gap: 4px;
       transition: color 0.15s;
     }
+    .remove-all-btn {
+      color: var(--p-muted);
+      margin-left: 12px;
+    }
+    .remove-all-btn:hover {
+      color: #ef4444;
+    }
 
     .add-row-btn:hover {
       text-decoration: underline;
       opacity: 0.8;
+    }
+    .row-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
     }
 
     /* Tab Controls */
@@ -1275,6 +1365,18 @@
         const inputs=planView ? planView.querySelectorAll(`[data-sec="${sec.id}"]`) : [];
         inputs.forEach(inp=>rows.push(inp.type==='checkbox'?inp.checked:(inp.value||'')));
         
+        // Collect task checkbox states
+        let checks;
+        const taskChecks = planView ? planView.querySelectorAll(`[data-task-check="${sec.id}"]`) : [];
+        if (taskChecks.length > 0) {
+          checks = [];
+          taskChecks.forEach(cb => checks.push(cb.checked));
+        } else {
+          const oldPlan = state.plans[state.currentDate];
+          const oldSec = oldPlan ? oldPlan.sections.find(s => s.sectionId === sec.id) : null;
+          if (oldSec && oldSec.checks) checks = oldSec.checks;
+        }
+
         let labels;
         const labelInputs = planView ? planView.querySelectorAll(`[data-sec-label="${sec.id}"]`) : [];
         if (labelInputs.length > 0) {
@@ -1287,7 +1389,7 @@
             labels = oldSec.labels;
           }
         }
-        return {sectionId:sec.id, rows, labels};
+        return {sectionId:sec.id, rows, labels, checks};
       });
       return{date:state.currentDate,templateId:state.currentTemplateId,sections};
     }
@@ -1606,15 +1708,19 @@
       if(sec.type==='hourly'||sec.type==='timeblock'){
         const targetLen = Math.max(planLabels.length, rows.length);
         const indices = Array.from({length: targetLen}, (_, i) => i);
-        body = indices.map(i => `
-          <div class="time-row">
+        body = indices.map(i => {
+          const pastClass = (!isPreview && isTimeSlotPast(planLabels[i])) ? ' time-past' : '';
+          return `
+          <div class="time-row${pastClass}">
             ${isPreview
               ? `<span class="time-label">${planLabels[i] || ''}</span>`
               : `<input type="text" class="time-label-input" data-sec-label="${sec.id}" value="${planLabels[i] || ''}" style="width:75px; font-family:'Outfit',sans-serif; font-size:12px; font-weight:600; color:var(--p-muted); border:1px dashed var(--p-border); border-radius:4px; background:var(--p-surface); text-align:right; padding:2px 4px; outline:none; margin-right:4px;" placeholder="Time">`
             }
             <textarea class="line-input" rows="1" ${dSec} style="resize:none">${rows[i]||''}</textarea>
-          </div>`).join('');
-        body+=isPreview ? '' : `<button class="add-row-btn" onclick="addTimeRow('${sec.id}')"><i class="ti ti-plus" aria-hidden="true"></i> add slot</button>`;
+            ${isPreview ? '' : `<button class="remove-row-btn" onclick="removeRow('${sec.id}', ${i}, 'time')" title="Remove slot"><i class="ti ti-x"></i></button>`}
+          </div>`;
+        }).join('');
+        body+=isPreview ? '' : `<div class="row-actions"><button class="add-row-btn" onclick="addTimeRow('${sec.id}')"><i class="ti ti-plus" aria-hidden="true"></i> add slot</button></div>`;
       }else if(sec.type==='priorities'||sec.type==='gratitude'){
         const targetLen = Math.max(sec.rows.length, rows.length);
         const indices = Array.from({length: targetLen}, (_, i) => i);
@@ -1622,17 +1728,23 @@
           <div class="priority-row">
             <div class="priority-num">${i+1}</div>
             <textarea class="line-input" rows="1" ${dSec} style="resize:none">${rows[i]||''}</textarea>
+            ${isPreview ? '' : `<button class="remove-row-btn" onclick="removeRow('${sec.id}', ${i}, 'bullet')" title="Remove"><i class="ti ti-x"></i></button>`}
           </div>`).join('');
-        body+=isPreview ? '' : `<button class="add-row-btn" onclick="addBulletRow('${sec.id}')"><i class="ti ti-plus" aria-hidden="true"></i> add</button>`;
+        body+=isPreview ? '' : `<div class="row-actions"><button class="add-row-btn" onclick="addBulletRow('${sec.id}')"><i class="ti ti-plus" aria-hidden="true"></i> add</button></div>`;
       }else if(sec.type==='tasks'){
+        const checks = (planSecData && planSecData.checks) ? planSecData.checks : [];
         const targetLen = Math.max(sec.rows.length, rows.length);
         const indices = Array.from({length: targetLen}, (_, i) => i);
-        body = indices.map(i => `
-          <div class="bullet-row">
-            <div class="bullet-dot"></div>
+        body = indices.map(i => {
+          const isChecked = !!checks[i];
+          return `
+          <div class="bullet-row${isChecked ? ' task-done' : ''}">
+            ${isPreview ? `<div class="bullet-dot"></div>` : `<input type="checkbox" class="task-checkbox" data-task-check="${sec.id}" ${isChecked ? 'checked' : ''} onchange="toggleTaskDone(this, '${sec.id}', ${i})">`}
             <textarea class="line-input" rows="1" ${dSec} style="resize:none">${rows[i]||''}</textarea>
-          </div>`).join('');
-        body+=isPreview ? '' : `<button class="add-row-btn" onclick="addBulletRow('${sec.id}')"><i class="ti ti-plus" aria-hidden="true"></i> add task</button>`;
+            ${isPreview ? '' : `<button class="remove-row-btn" onclick="removeRow('${sec.id}', ${i}, 'bullet')" title="Remove task"><i class="ti ti-x"></i></button>`}
+          </div>`;
+        }).join('');
+        body+=isPreview ? '' : `<div class="row-actions"><button class="add-row-btn" onclick="addBulletRow('${sec.id}')"><i class="ti ti-plus" aria-hidden="true"></i> add task</button></div>`;
       }else if(sec.type==='notes'){
         body=`<textarea class="notes-area" ${notesId} ${dSec}>${rows[0]||''}</textarea>`;
       }else if(sec.type==='reflection'){
@@ -1660,9 +1772,10 @@
               const checked = !!rows[ri * 8 + 1 + di];
               return `<input type="checkbox" class="habit-cb" ${dSec} ${checked?'checked':''}>`;
             }).join('')}
+            ${isPreview ? '' : `<button class="remove-row-btn" onclick="removeRow('${sec.id}', ${ri}, 'habit')" title="Remove habit" style="margin-left:4px"><i class="ti ti-x"></i></button>`}
           </div>`;
         }).join('');
-        body+=isPreview ? '' : `<button class="add-row-btn" style="margin-top:12px" onclick="addHabit('${sec.id}')"><i class="ti ti-plus" aria-hidden="true"></i> add habit</button>`;
+        body+=isPreview ? '' : `<div class="row-actions" style="margin-top:12px"><button class="add-row-btn" onclick="addHabit('${sec.id}')"><i class="ti ti-plus" aria-hidden="true"></i> add habit</button></div>`;
       }else if(sec.type==='appointments'){
         const targetLen = Math.max(sec.rows.length, rows.length / 2 || 0);
         const indices = Array.from({length: targetLen}, (_, i) => i);
@@ -1673,9 +1786,10 @@
           <div class="time-row">
             <input class="line-input" placeholder="time" ${dSec} value="${timeVal||''}" style="font-family:'Outfit',sans-serif; font-weight:500;">
             <textarea class="line-input" rows="1" ${dSec} style="resize:none">${descVal||''}</textarea>
+            ${isPreview ? '' : `<button class="remove-row-btn" onclick="removeRow('${sec.id}', ${ri}, 'appointment')" title="Remove appointment"><i class="ti ti-x"></i></button>`}
           </div>`;
         }).join('');
-        body+=isPreview ? '' : `<button class="add-row-btn" onclick="addAppointmentRow('${sec.id}')"><i class="ti ti-plus" aria-hidden="true"></i> add appointment</button>`;
+        body+=isPreview ? '' : `<div class="row-actions"><button class="add-row-btn" onclick="addAppointmentRow('${sec.id}')"><i class="ti ti-plus" aria-hidden="true"></i> add appointment</button></div>`;
       }else if(sec.type==='mood'){
         const selectedMood = rows[0] || '';
         const selectedEnergy = rows[1] || '3';
@@ -1853,6 +1967,103 @@
     }
     function addAppointmentRow(secId){
       _addDynamicRow(secId, () => '');
+    }
+
+    // ===== Feature 2: Detect if a time slot is in the past =====
+    function isTimeSlotPast(timeStr) {
+      if (!timeStr || state.currentDate !== todayStr()) return false;
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      
+      // Parse "9 AM", "10:30 PM", "14:00", etc.
+      const match12 = timeStr.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+      if (match12) {
+        let h = parseInt(match12[1], 10);
+        const m = parseInt(match12[2] || '0', 10);
+        const ampm = match12[3].toUpperCase();
+        if (ampm === 'PM' && h !== 12) h += 12;
+        if (ampm === 'AM' && h === 12) h = 0;
+        return (h * 60 + m) < currentMinutes;
+      }
+      const match24 = timeStr.trim().match(/^(\d{1,2}):?(\d{2})$/);
+      if (match24) {
+        const h = parseInt(match24[1], 10);
+        const m = parseInt(match24[2], 10);
+        return (h * 60 + m) < currentMinutes;
+      }
+      return false;
+    }
+
+    // Periodically re-apply past-time styling (runs every 60s)
+    function markPastTimeSlots() {
+      if (state.currentDate !== todayStr()) return;
+      document.querySelectorAll('.time-row').forEach(row => {
+        const labelInput = row.querySelector('.time-label-input');
+        if (labelInput && isTimeSlotPast(labelInput.value)) {
+          row.classList.add('time-past');
+        } else {
+          row.classList.remove('time-past');
+        }
+      });
+    }
+
+    // ===== Feature 3: Toggle task checkbox =====
+    function toggleTaskDone(checkbox, secId, index) {
+      const row = checkbox.closest('.bullet-row');
+      if (checkbox.checked) {
+        row.classList.add('task-done');
+      } else {
+        row.classList.remove('task-done');
+      }
+      setSaveStatus('modified');
+      triggerAutoSave();
+    }
+
+    // ===== Feature 4: Remove a row =====
+    function removeRow(secId, index, type) {
+      flushAutoSave();
+      
+      if (state.activeTab === 'customize') {
+        const tpl = getTemplate(state.currentTemplateId);
+        const sec = tpl.sections.find(s => s.id === secId);
+        if (!sec || sec.rows.length <= 1) {
+          toast('Cannot remove the last row');
+          return;
+        }
+        if (type === 'habit') {
+          sec.rows.splice(index * 8, 8);
+        } else if (type === 'appointment') {
+          sec.rows.splice(index * 2, 2);
+        } else {
+          sec.rows.splice(index, 1);
+        }
+        saveToLS();
+        renderCustomize();
+        renderPlan();
+      } else {
+        let plan = state.plans[state.currentDate] || getPlanOrDefault(state.currentDate);
+        state.plans[state.currentDate] = plan;
+        const sec = plan.sections.find(s => s.sectionId === secId);
+        if (!sec) return;
+        
+        if (type === 'time') {
+          if (sec.rows.length <= 1) { toast('Cannot remove the last slot'); return; }
+          sec.rows.splice(index, 1);
+          if (sec.labels) sec.labels.splice(index, 1);
+          if (sec.checks) sec.checks.splice(index, 1);
+        } else if (type === 'bullet') {
+          if (sec.rows.length <= 1) { toast('Cannot remove the last row'); return; }
+          sec.rows.splice(index, 1);
+          if (sec.checks) sec.checks.splice(index, 1);
+        } else if (type === 'habit') {
+          sec.rows.splice(index * 8, 8);
+        } else if (type === 'appointment') {
+          sec.rows.splice(index * 2, 2);
+        }
+        
+        saveToLS();
+        renderPlan();
+      }
     }
 
     function renderCustomize(){
@@ -2345,6 +2556,18 @@
       
       // Start background sync from cloud database
       fetchFromCloud();
+
+      // Feature 1: Real-time sync — pull cloud changes every 30 seconds
+      setInterval(() => {
+        if (cloudReady && !isSyncing) {
+          fetchFromCloud();
+        }
+      }, 30000);
+
+      // Feature 2: Mark past time slots every 60 seconds
+      setInterval(markPastTimeSlots, 60000);
+      // Also mark on initial load after a short delay
+      setTimeout(markPastTimeSlots, 500);
     }
     init();
   </script>
